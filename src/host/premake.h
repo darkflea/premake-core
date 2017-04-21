@@ -1,4 +1,4 @@
-/**
+﻿/**
  * \file   premake.h
  * \brief  Program-wide constants and definitions.
  * \author Copyright (c) 2002-2015 Jason Perkins and the Premake project
@@ -145,6 +145,16 @@ int yaml_null( lua_State *L );
 int http_get( lua_State *L );
 int http_post( lua_State *L );
 int http_download( lua_State *L );
+#endif
+
+#ifdef PREMAKE_JSON
+int json_decode(lua_State* L);
+int json_encode(lua_State* L);
+int json_load(lua_State* L);
+int json_dump(lua_State* L);
+int json_object(lua_State* L);
+int json_array(lua_State* L);
+int json_null(lua_State* L);
 #endif
 
 #ifdef PREMAKE_COMPRESSION

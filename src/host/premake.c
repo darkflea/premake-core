@@ -1,4 +1,4 @@
-/**
+﻿/**
  * \file   premake.c
  * \brief  Program entry point.
  * \author Copyright (c) 2002-2015 Jason Perkins and the Premake project
@@ -16,6 +16,10 @@
 #if PLATFORM_BSD
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#endif
+
+#ifdef PREMAKE_JSON
+#include "ljson.h"
 #endif
 
 #define ERROR_MESSAGE  "Error: %s\n"
@@ -127,8 +131,8 @@ static const luaL_Reg zip_functions[] =
 #ifdef PREMAKE_YAML
 static const luaL_Reg yaml_functions[] =
 {
-    { "load", yaml_load },
-    { "dump", yaml_dump },
+    { "decode", yaml_load },
+    { "encode", yaml_dump },
     { "configure", yaml_config },
     { "null", yaml_null },
     { NULL, NULL }
@@ -158,9 +162,13 @@ int premake_init( lua_State *L )
 #endif
 
 #ifdef PREMAKE_YAML
-    luaL_register( L, "yaml", yaml_functions );
+	luaL_register(L, "yaml", yaml_functions);
 #endif
 
+#ifdef PREMAKE_JSON
+	register_rapidjson(L);
+#endif
+	
     /* push the application metadata */
     lua_pushstring( L, LUA_COPYRIGHT );
     lua_setglobal( L, "_COPYRIGHT" );
