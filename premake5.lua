@@ -74,6 +74,12 @@
 		description = "Disable Zlib/Zip 3rd party lib"
 	}
 
+
+	newoption {
+		trigger = "no-yaml",
+		description = "Disable yaml 3rd party lib"
+	}
+
 	newoption {
 		trigger     = "bytecode",
 		description = "Embed scripts as bytecode instead of stripped souce code"
@@ -102,6 +108,9 @@
 		end
 		if not _OPTIONS["no-curl"] then
 			defines { "CURL_STATICLIB", "PREMAKE_CURL"}
+		end
+		if not _OPTIONS["no-yaml"] then
+			defines { "PREMAKE_YAML", "YAML_DECLARE_STATIC" }
 		end
 
 		filter "configurations:Debug"
@@ -138,6 +147,10 @@
 		if not _OPTIONS["no-curl"] then
 			includedirs { "contrib/curl/include" }
 			links { "curl-lib" }
+		end
+		if not _OPTIONS["no-yaml"] then
+			includedirs { "contrib/lyaml/src" }
+			links { "lyaml-lib" }
 		end
 
 		files
@@ -200,6 +213,9 @@
 		if not _OPTIONS["no-curl"] then
 			include "contrib/mbedtls"
 			include "contrib/curl"
+		end
+		if not _OPTIONS["no-yaml"] then
+			include "contrib/lyaml"
 		end
 
 --

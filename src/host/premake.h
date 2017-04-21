@@ -72,100 +72,107 @@
 
 
 /* If a /scripts argument is present, its value */
-extern const char* scripts_path;
+extern const char *scripts_path;
 
 
 /* Bootstrapping helper functions */
-int do_chdir(lua_State* L, const char* path);
-unsigned long do_hash(const char* str, int seed);
-void do_getabsolute(char* result, const char* value, const char* relative_to);
-int do_getcwd(char* buffer, size_t size);
-int do_isabsolute(const char* path);
-int do_isfile(lua_State* L, const char* filename);
-int do_locate(lua_State* L, const char* filename, const char* path);
-void do_normalize(lua_State* L, char* buffer, const char* path);
-int do_pathsearch(lua_State* L, const char* filename, const char* path);
-void do_translate(char* value, const char sep);
+int do_chdir( lua_State *L, const char *path );
+unsigned long do_hash( const char *str, int seed );
+void do_getabsolute( char *result, const char *value, const char *relative_to );
+int do_getcwd( char *buffer, size_t size );
+int do_isabsolute( const char *path );
+int do_isfile( lua_State *L, const char *filename );
+int do_locate( lua_State *L, const char *filename, const char *path );
+void do_normalize( lua_State *L, char *buffer, const char *path );
+int do_pathsearch( lua_State *L, const char *filename, const char *path );
+void do_translate( char *value, const char sep );
 
 /* Built-in functions */
-int criteria_compile(lua_State* L);
-int criteria_delete(lua_State* L);
-int criteria_matches(lua_State* L);
-int debug_prompt(lua_State* L);
-int path_getabsolute(lua_State* L);
-int path_getrelative(lua_State* L);
-int path_isabsolute(lua_State* L);
-int path_join(lua_State* L);
-int path_normalize(lua_State* L);
-int path_translate(lua_State* L);
-int path_wildcards(lua_State* L);
-int os_chdir(lua_State* L);
-int os_chmod(lua_State* L);
-int os_copyfile(lua_State* L);
-int os_getcwd(lua_State* L);
-int os_getpass(lua_State* L);
-int os_getWindowsRegistry(lua_State* L);
-int os_getversion(lua_State* L);
-int os_is64bit(lua_State* L);
-int os_isdir(lua_State* L);
-int os_isfile(lua_State* L);
-int os_islink(lua_State* L);
-int os_locate(lua_State* L);
-int os_matchdone(lua_State* L);
-int os_matchisfile(lua_State* L);
-int os_matchname(lua_State* L);
-int os_matchnext(lua_State* L);
-int os_matchstart(lua_State* L);
-int os_mkdir(lua_State* L);
-int os_pathsearch(lua_State* L);
-int os_realpath(lua_State* L);
-int os_rmdir(lua_State* L);
-int os_stat(lua_State* L);
-int os_uuid(lua_State* L);
-int os_writefile_ifnotequal(lua_State* L);
-int os_compile(lua_State* L);
-int string_endswith(lua_State* L);
-int string_hash(lua_State* L);
-int string_sha1(lua_State* L);
-int string_startswith(lua_State* L);
-int buffered_new(lua_State* L);
-int buffered_write(lua_State* L);
-int buffered_writeln(lua_State* L);
-int buffered_close(lua_State* L);
-int buffered_tostring(lua_State* L);
+int criteria_compile( lua_State *L );
+int criteria_delete( lua_State *L );
+int criteria_matches( lua_State *L );
+int debug_prompt( lua_State *L );
+int path_getabsolute( lua_State *L );
+int path_getrelative( lua_State *L );
+int path_isabsolute( lua_State *L );
+int path_join( lua_State *L );
+int path_normalize( lua_State *L );
+int path_translate( lua_State *L );
+int path_wildcards( lua_State *L );
+int os_chdir( lua_State *L );
+int os_chmod( lua_State *L );
+int os_copyfile( lua_State *L );
+int os_getcwd( lua_State *L );
+int os_getpass( lua_State *L );
+int os_getWindowsRegistry( lua_State *L );
+int os_getversion( lua_State *L );
+int os_is64bit( lua_State *L );
+int os_isdir( lua_State *L );
+int os_isfile( lua_State *L );
+int os_islink( lua_State *L );
+int os_locate( lua_State *L );
+int os_matchdone( lua_State *L );
+int os_matchisfile( lua_State *L );
+int os_matchname( lua_State *L );
+int os_matchnext( lua_State *L );
+int os_matchstart( lua_State *L );
+int os_mkdir( lua_State *L );
+int os_pathsearch( lua_State *L );
+int os_realpath( lua_State *L );
+int os_rmdir( lua_State *L );
+int os_stat( lua_State *L );
+int os_uuid( lua_State *L );
+int os_writefile_ifnotequal( lua_State *L );
+int os_compile( lua_State *L );
+int string_endswith( lua_State *L );
+int string_hash( lua_State *L );
+int string_sha1( lua_State *L );
+int string_startswith( lua_State *L );
+int buffered_new( lua_State *L );
+int buffered_write( lua_State *L );
+int buffered_writeln( lua_State *L );
+int buffered_close( lua_State *L );
+int buffered_tostring( lua_State *L );
+
+#ifdef PREMAKE_YAML
+int yaml_load( lua_State *L );
+int yaml_dump( lua_State *L );
+int yaml_config( lua_State *L );
+int yaml_null( lua_State *L );
+#endif
 
 #ifdef PREMAKE_CURL
-int http_get(lua_State* L);
-int http_post(lua_State* L);
-int http_download(lua_State* L);
+int http_get( lua_State *L );
+int http_post( lua_State *L );
+int http_download( lua_State *L );
 #endif
 
 #ifdef PREMAKE_COMPRESSION
-int zip_extract(lua_State* L);
+int zip_extract( lua_State *L );
 #endif
 
 #ifdef _MSC_VER
- #ifndef snprintf
-  #define snprintf _snprintf
- #endif
+#ifndef snprintf
+#define snprintf _snprintf
+#endif
 #endif
 
 /* Engine interface */
 
 typedef struct
 {
-	const char*          name;
-	const unsigned char* bytecode;
-	size_t               length;
+    const char          *name;
+    const unsigned char *bytecode;
+    size_t               length;
 } buildin_mapping;
 
 extern const buildin_mapping builtin_scripts[];
 
 
-int premake_init(lua_State* L);
-int premake_execute(lua_State* L, int argc, const char** argv, const char* script);
-int premake_load_embedded_script(lua_State* L, const char* filename);
-const buildin_mapping* premake_find_embedded_script(const char* filename);
+int premake_init( lua_State *L );
+int premake_execute( lua_State *L, int argc, const char **argv, const char *script );
+int premake_load_embedded_script( lua_State *L, const char *filename );
+const buildin_mapping *premake_find_embedded_script( const char *filename );
 
-int premake_locate_executable(lua_State* L, const char* argv0);
-int premake_test_file(lua_State* L, const char* filename, int searchMask);
+int premake_locate_executable( lua_State *L, const char *argv0 );
+int premake_test_file( lua_State *L, const char *filename, int searchMask );
