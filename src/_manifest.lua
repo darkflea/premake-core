@@ -23,6 +23,7 @@
 		"base/semver.lua",
 		"base/http.lua",
 		"base/languages.lua",
+		"base/term.lua",
 
 		-- configuration data
 		"base/field.lua",

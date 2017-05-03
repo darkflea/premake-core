@@ -26,6 +26,7 @@
 			"universal",
 			p.X86,
 			p.X86_64,
+			p.ARM,
 		},
 		aliases = {
 			i386  = p.X86,
@@ -791,6 +792,13 @@
 	}
 
 	api.register {
+		name = "nugetsource",
+		scope = "project",
+		kind = "string",
+		tokens = true,
+	}
+
+	api.register {
 		name = "objdir",
 		scope = "config",
 		kind = "path",
@@ -1103,7 +1111,7 @@
 		tokens = true,
 	}
 
- 	api.register {
+	api.register {
 		name = "usingdirs",
 		scope = "config",
 		kind = "list:directory",
@@ -1488,6 +1496,7 @@
 	exceptionhandling "Default"
 	rtti "Default"
 	symbols "Default"
+	nugetsource "https://api.nuget.org/v3/index.json"
 
 	-- Setting a default language makes some validation easier later
 
@@ -1535,8 +1544,5 @@
 
 	filter { "system:macosx" }
 		toolset "clang"
-
-	filter { "system:windows", "kind:WindowedApp or ConsoleApp" }
-		entrypoint "mainCRTStartup"
 
 	filter {}

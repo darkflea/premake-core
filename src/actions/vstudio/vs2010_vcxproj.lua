@@ -4,9 +4,9 @@
 -- Copyright (c) 2009-2015 Jason Perkins and the Premake project
 --
 
-	premake.vstudio.vc2010 = {}
-
 	local p = premake
+	p.vstudio.vc2010 = {}
+
 	local vstudio = p.vstudio
 	local project = p.project
 	local config = p.config
@@ -17,7 +17,7 @@
 
 
 ---
--- Add namespace for element definition lists for premake.callArray()
+-- Add namespace for element definition lists for p.callArray()
 ---
 
 	m.elements = {}
@@ -159,6 +159,7 @@
 				m.platformToolset,
 				m.wholeProgramOptimization,
 				m.nmakeOutDirs,
+				m.windowsSDKDesktopARMSupport,
 			}
 		end
 	end
@@ -1217,6 +1218,8 @@
 	function m.compileAs(cfg)
 		if p.languages.isc(cfg.language) then
 			m.element("CompileAs", nil, "CompileAsC")
+		elseif p.languages.iscpp(cfg.language) then
+			m.element("CompileAs", nil, "CompileAsCpp")
 		end
 	end
 
@@ -1544,7 +1547,8 @@
 	end
 
 	local function nuGetTargetsFile(prj, package)
-		return p.vstudio.path(prj, p.filename(prj.solution, string.format("packages\\%s\\build\\native\\%s.targets", vstudio.nuget2010.packageName(package), vstudio.nuget2010.packageId(package))))
+		local packageAPIInfo = vstudio.nuget2010.packageAPIInfo(prj, package)
+		return p.vstudio.path(prj, p.filename(prj.solution, string.format("packages\\%s.%s\\build\\native\\%s.targets", vstudio.nuget2010.packageId(package), packageAPIInfo.verbatimVersion or packageAPIInfo.version, vstudio.nuget2010.packageId(package))))
 	end
 
 	function m.importNuGetTargets(prj)
@@ -1789,6 +1793,13 @@
 	end
 
 
+	function m.windowsSDKDesktopARMSupport(cfg)
+		if cfg.architecture == p.ARM then
+			p.w('<WindowsSDKDesktopARMSupport>true</WindowsSDKDesktopARMSupport>')
+		end
+	end
+
+
 	function m.nmakeOutput(cfg)
 		m.element("NMakeOutput", nil, "$(OutDir)%s", cfg.buildtarget.name)
 	end
@@ -1797,7 +1808,7 @@
 	function m.nmakePreprocessorDefinitions(cfg)
 		if cfg.kind ~= p.NONE and #cfg.defines > 0 then
 			local defines = table.concat(cfg.defines, ";")
-			defines = p.esc(defines) .. ";$(NMakePreprocessorDefinitions)"
+			defines = defines .. ";$(NMakePreprocessorDefinitions)"
 			m.element('NMakePreprocessorDefinitions', nil, defines)
 		end
 	end
@@ -1864,6 +1875,12 @@
 	function m.executablePath(cfg)
 		local dirs = vstudio.path(cfg, cfg.bindirs)
 		if #dirs > 0 then
+			dirs = table.translate(dirs, function(dir)
+				if path.isabsolute(dir) then
+					return dir
+				end
+				return "$(ProjectDir)" .. dir
+			end)
 			m.element("ExecutablePath", nil, "%s;$(ExecutablePath)", table.concat(dirs, ";"))
 		end
 	end
@@ -1912,7 +1929,7 @@
 			if escapeQuotes then
 				defines = defines:gsub('"', '\\"')
 			end
-			defines = p.esc(defines) .. ";%%(PreprocessorDefinitions)"
+			defines = defines .. ";%%(PreprocessorDefinitions)"
 			m.element('PreprocessorDefinitions', condition, defines)
 		end
 	end
@@ -1924,7 +1941,7 @@
 			if escapeQuotes then
 				undefines = undefines:gsub('"', '\\"')
 			end
-			undefines = p.esc(undefines) .. ";%%(UndefinePreprocessorDefinitions)"
+			undefines = undefines .. ";%%(UndefinePreprocessorDefinitions)"
 			m.element('UndefinePreprocessorDefinitions', condition, undefines)
 		end
 	end
@@ -2142,7 +2159,7 @@
 	function m.disableSpecificWarnings(cfg, condition)
 		if #cfg.disablewarnings > 0 then
 			local warnings = table.concat(cfg.disablewarnings, ";")
-			warnings = p.esc(warnings) .. ";%%(DisableSpecificWarnings)"
+			warnings = warnings .. ";%%(DisableSpecificWarnings)"
 			m.element('DisableSpecificWarnings', condition, warnings)
 		end
 	end
@@ -2151,7 +2168,7 @@
 	function m.treatSpecificWarningsAsErrors(cfg, condition)
 		if #cfg.fatalwarnings > 0 then
 			local fatal = table.concat(cfg.fatalwarnings, ";")
-			fatal = p.esc(fatal) .. ";%%(TreatSpecificWarningsAsErrors)"
+			fatal = fatal .. ";%%(TreatSpecificWarningsAsErrors)"
 			m.element('TreatSpecificWarningsAsErrors', condition, fatal)
 		end
 	end

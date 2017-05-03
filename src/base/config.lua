@@ -48,7 +48,7 @@
 		local bundlename = ""
 		local bundlepath = ""
 
-		if cfg.system == premake.MACOSX and kind == premake.WINDOWEDAPP then
+		if cfg.system == p.MACOSX and kind == p.WINDOWEDAPP then
 			bundlename = basename .. ".app"
 			bundlepath = path.join(bundlename, "Contents/MacOS")
 		end
@@ -193,8 +193,8 @@
 		-- is provided, change the kind as import libraries are static.
 		local kind = cfg.kind
 		if project.isnative(cfg.project)  then
-			if cfg.system == premake.WINDOWS and kind == premake.SHAREDLIB and not cfg.flags.NoImportLib then
-				kind = premake.STATICLIB
+			if cfg.system == p.WINDOWS and kind == p.SHAREDLIB and not cfg.flags.NoImportLib then
+				kind = p.STATICLIB
 			end
 		end
 		return config.buildtargetinfo(cfg, kind, "implib")
@@ -231,7 +231,7 @@
 --    An array containing the requested link target information.
 --
 
- 	function config.getlinks(cfg, kind, part, linkage)
+	function config.getlinks(cfg, kind, part, linkage)
 		local result = {}
 
 		-- If I'm building a list of link directories, include libdirs
