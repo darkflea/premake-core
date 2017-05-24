@@ -1,8 +1,11 @@
 #ifndef __LUA_RAPIDJSION_LUACOMPAT_H__
 #define __LUA_RAPIDJSION_LUACOMPAT_H__
 
+extern "C" {
 #include <cmath>
 #include <cstdint>
+}
+
 #include <limits>
 #include <lauxlib.h>
 
