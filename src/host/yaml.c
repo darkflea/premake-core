@@ -1,4 +1,4 @@
-/*
+﻿/*
 * lyaml.c, LibYAML binding for Lua
 *
 * Copyright (c) 2009, Andrew Danforth <acd@weirdness.net>
@@ -22,9 +22,11 @@
 * THE SOFTWARE.
 *
 * Portions of this software were inspired by Perl's YAML::LibYAML module by
-* Ingy d�t Net <ingy@cpan.org>
+* Ingy döt Net <ingy@cpan.org>
 *
 */
+
+#ifdef PREMAKE_YAML
 
 #include <string.h>
 #include <stdlib.h>
@@ -1020,3 +1022,5 @@ int yaml_null( lua_State *L )
 
     return 1;
 }
+
+#endif
