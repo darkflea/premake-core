@@ -1,7 +1,6 @@
 #ifndef __LUA_RAPIDJSION_LUACOMPAT_H__
 #define __LUA_RAPIDJSION_LUACOMPAT_H__
 
-#include <cmath>
 #include <stdint.h>
 #include <limits>
 #include <lauxlib.h>
