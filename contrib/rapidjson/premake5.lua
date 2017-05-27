@@ -1,5 +1,5 @@
 project "json-lib"
-	language    "C++"
+	language    "C++11"
 	kind        "StaticLib"
 	warnings    "off"
 
