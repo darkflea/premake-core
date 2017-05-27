@@ -143,7 +143,7 @@
 
 	project "Premake5"
 		targetname  "premake5"
-		language    "C"
+		language    "C++"
 		kind        "ConsoleApp"
 		includedirs { "contrib/lua/src" }
 		links       { "lua-lib" }
