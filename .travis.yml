@@ -3,7 +3,7 @@ os:
   - osx
 
 script:
- - bash script/install-travis.sh
+ - bash scripts/install-travis.sh
 
  - make -f Bootstrap.mak $TRAVIS_OS_NAME
  - bin/release/premake5 test
