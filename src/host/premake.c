@@ -72,7 +72,7 @@ static const luaL_Reg os_functions[] =
     { "getpass",                os_getpass              },
     { "getWindowsRegistry",     os_getWindowsRegistry   },
     { "getversion",             os_getversion           },
-	{ "host",                   os_host                 },
+    { "host",                   os_host                 },
     { "isfile",                 os_isfile               },
     { "islink",                 os_islink               },
     { "locate",                 os_locate               },
@@ -111,10 +111,11 @@ static const luaL_Reg buffered_functions[] =
     { NULL, NULL }
 };
 
-static const luaL_Reg term_functions[] = {
-	{ "getTextColor",  term_getTextColor },
-	{ "setTextColor",  term_setTextColor },
-	{ NULL, NULL }
+static const luaL_Reg term_functions[] =
+{
+    { "getTextColor",  term_getTextColor },
+    { "setTextColor",  term_setTextColor },
+    { NULL, NULL }
 };
 
 #ifdef PREMAKE_CURL
@@ -159,7 +160,7 @@ int premake_init( lua_State *L )
     luaL_register( L, "os",       os_functions );
     luaL_register( L, "string",   string_functions );
     luaL_register( L, "buffered", buffered_functions );
-	luaL_register(L, "term",     term_functions);
+    luaL_register( L, "term",     term_functions );
 
 #ifdef PREMAKE_CURL
     luaL_register( L, "http",     http_functions );
@@ -170,13 +171,13 @@ int premake_init( lua_State *L )
 #endif
 
 #ifdef PREMAKE_YAML
-	luaL_register(L, "yaml", yaml_functions);
+    luaL_register( L, "yaml", yaml_functions );
 #endif
 
 #ifdef PREMAKE_JSON
-	register_rapidjson(L);
+    register_rapidjson( L );
 #endif
-	
+
     /* push the application metadata */
     lua_pushstring( L, LUA_COPYRIGHT );
     lua_setglobal( L, "_COPYRIGHT" );
@@ -192,7 +193,7 @@ int premake_init( lua_State *L )
 
     /* set the OS platform variable */
     lua_pushstring( L, PLATFORM_STRING );
-    lua_setglobal(L, "_TARGET_OS");
+    lua_setglobal( L, "_TARGET_OS" );
 
     /* find the user's home directory */
     value = getenv( "HOME" );

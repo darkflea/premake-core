@@ -8,12 +8,12 @@
 
 	local suite = test.declare("premake_yaml")
 
-	function suite.auto_load()
-		test.isnotnil(yaml.load)
+	function suite.auto_decode()
+		test.isnotnil(yaml.decode)
 	end
 
     function suite.parse_multiple_values()
-        local a, b, c = yaml.load [[
+        local a, b, c = yaml.decode [[
 --- 3
 --- 4
 --- 5
@@ -24,8 +24,8 @@
         test.isequal(5, c)
     end
 
-    function suite.load()
-        local data = yaml.load [[
+    function suite.decode()
+        local data = yaml.decode [[
 hey: June
 ok: true
 ]]
@@ -36,16 +36,16 @@ ok: true
     function suite.disable_anchors()
         local l = { x = 1 }
         l.y = l
-        -- true == safe loading
-        local res = yaml.load(yaml.dump(l), true)
+        -- true == safe decodeing
+        local res = yaml.decode(yaml.encode(l), true)
         test.isnil(res.y)
     end
 
     function suite.disable_anchors()
         local l = { x = 1 }
         l.y = l
-        -- true == safe loading
-        local res = yaml.load(yaml.dump(l), true)
+        -- true == safe decodeing
+        local res = yaml.decode(yaml.encode(l), true)
         test.isnil(res.y)
     end
 
@@ -55,7 +55,7 @@ ok: true
         }
     end
 
-    function suite.dump_sorted()
+    function suite.encode_sorted()
         yaml.configure {
             sort_table_keys = true,
         }
@@ -75,7 +75,7 @@ bernard: 4
 dom: 1
 louis: 3
 simon: 6
-]], yaml.dump(x))
+]], yaml.encode(x))
 
         yaml.configure {
             sort_table_keys = false,
