@@ -1,7 +1,7 @@
 os:
   - linux
   - osx
-
+sudo: required
 script:
  - bash scripts/install-travis.sh
 
