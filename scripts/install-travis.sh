@@ -13,5 +13,5 @@ if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
     sudo pip install codecov
 elif [[ "$TRAVIS_OS_NAME" == "osx" ]]; then 
     brew tap homebrew/versions
-    brew install llvm37
+    brew install llvm40
 fi
