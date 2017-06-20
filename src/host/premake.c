@@ -130,7 +130,7 @@ static const luaL_Reg zip_functions[] = {
 #endif
 
 #ifdef PREMAKE_YAML
-static const luaL_Reg yaml_functions[] =
+static const luaL_Reg yaml_functions[] = {
 	{ "decode", yaml_load },
 	{ "encode", yaml_dump },
 	{ "configure", yaml_config },
