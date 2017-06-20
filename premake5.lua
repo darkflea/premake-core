@@ -80,12 +80,6 @@
 		description = "Disable yaml 3rd party lib"
 	}
 
-
-	newoption {
-		trigger = "no-json",
-		description = "Disable json 3rd party lib"
-	}
-
 	newoption {
 		trigger     = "bytecode",
 		description = "Embed scripts as bytecode instead of stripped souce code"
@@ -118,9 +112,6 @@
 		if not _OPTIONS["no-yaml"] then
 			defines { "PREMAKE_YAML", "YAML_DECLARE_STATIC" }
 		end
-		if not _OPTIONS["no-json"] then
-			defines { "PREMAKE_JSON" }
-		end
 
 		filter "configurations:Debug"
 			defines     "_DEBUG"
@@ -143,7 +134,7 @@
 
 	project "Premake5"
 		targetname  "premake5"
-		language    "C++"
+		language    "C"
 		kind        "ConsoleApp"
 		includedirs { "contrib/lua/src" }
 		links       { "lua-lib" }
@@ -160,10 +151,6 @@
 		if not _OPTIONS["no-yaml"] then
 			includedirs { "contrib/lyaml/src" }
 			links { "lyaml-lib" }
-		end
-		if not _OPTIONS["no-json"] then
-			includedirs { "contrib/rapidjson/src", "contrib/rapidjson/rapidjson/include" }
-			links { "json-lib" }
 		end
 
 		files
@@ -229,9 +216,6 @@
 		end
 		if not _OPTIONS["no-yaml"] then
 			include "contrib/lyaml"
-		end
-		if not _OPTIONS["no-json"] then
-			include "contrib/rapidjson"
 		end
 
 --
