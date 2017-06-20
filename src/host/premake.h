@@ -53,6 +53,13 @@
 #include <unistd.h>
 #endif
 
+/* not all platforms define this */
+#ifndef FALSE
+#define FALSE 0
+#endif
+#ifndef TRUE
+#define TRUE 1
+#endif
 
 /* Fill in any missing bits */
 #ifndef PATH_MAX
@@ -86,6 +93,9 @@ int do_locate(lua_State* L, const char* filename, const char* path);
 void do_normalize(lua_State* L, char* buffer, const char* path);
 int do_pathsearch(lua_State* L, const char* filename, const char* path);
 void do_translate(char* value, const char sep);
+
+int term_doGetTextColor();
+void term_doSetTextColor(int color);
 
 /* Built-in functions */
 int criteria_compile(lua_State* L);

@@ -147,6 +147,14 @@
 			return false
 		end
 
+		-- try to parse semver, if it fails, it's not semver compatible and we cannot compare, in which case
+		-- we're going to ignore the checkVersion entirely, but warn.
+		if not premake.isSemVer(version) then
+			p.warn("'" .. version .. "' is not semver compatible, and cannot be compared against '" .. checks .. "'.");
+			return true
+		end
+
+		-- now compare the semver against the checks.
 		local function eq(a, b) return a == b end
 		local function le(a, b) return a <= b end
 		local function lt(a, b) return a < b  end
@@ -361,6 +369,23 @@
 	end
 
 
+--
+-- Display information in the term.infoColor color.
+--
+-- @param message
+--    The info message, which may contain string formatting tokens.
+-- @param ...
+--    Values to fill in the string formatting tokens.
+--
+
+	function premake.info(message, ...)
+		message = string.format(message, ...)
+		term.pushColor(term.infoColor)
+		io.stdout:write(string.format("** Info: " .. message .. "\n", ...))
+		term.popColor();
+	end
+
+
 
 --
 -- A shortcut for printing formatted output.
@@ -393,4 +418,14 @@
 		else
 			return string.format("%s(%d)", info.short_src, info.currentline)
 		end
+	end
+
+
+---
+-- check if version is semver.
+---
+
+	function premake.isSemVer(version)
+		local sMajor, sMinor, sPatch, sPrereleaseAndBuild = version:match("^(%d+)%.?(%d*)%.?(%d*)(.-)$")
+		return (type(sMajor) == 'string')
 	end

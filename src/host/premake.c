@@ -131,7 +131,6 @@ static const luaL_Reg zip_functions[] = {
 
 #ifdef PREMAKE_YAML
 static const luaL_Reg yaml_functions[] =
-{
 	{ "decode", yaml_load },
 	{ "encode", yaml_dump },
 	{ "configure", yaml_config },
@@ -139,6 +138,36 @@ static const luaL_Reg yaml_functions[] =
 	{ NULL, NULL }
 };
 #endif
+
+
+static void lua_getorcreate_table(lua_State *L, const char *modname)
+{
+	luaL_getsubtable(L, LUA_REGISTRYINDEX, "_LOADED");      // get _LOADED table            stack = {_LOADED}
+	lua_getfield(L, -1, modname);                           // get _LOADED[modname]         stack = { _LOADED, result }
+	if (!lua_istable(L, -1))                                // not found?                   stack = { _LOADED, result }
+	{
+		lua_pop(L, 1);                                      // remove previous result       stack = { _LOADED }
+		lua_pushglobaltable(L);                             // push _G onto stack           stack = { _LOADED, _G }
+		lua_createtable(L, 0, 0);                           // new table for field          stack = { _LOADED, _G, result }
+		lua_pushlstring(L, modname, strlen(modname));       //                              stack = { _LOADED, _G, result, modname }
+		lua_pushvalue(L, -2);                               //                              stack = { _LOADED, _G, result, modname, result }
+		lua_settable(L, -4);                                // _G[modname] = result         stack = { _LOADED, _G, result }
+		lua_remove(L, -2);                                  // remove _G from stack         stack = { _LOADED, result }
+		lua_pushvalue(L, -1);                               // duplicate result             stack = { _LOADED, result, result }
+		lua_setfield(L, -3, modname);                       // _LOADED[modname] = result    stack = { _LOADED, result }
+	}
+
+	lua_remove(L, -2);                                      // remove _LOADED from stack    stack = { result }
+}
+
+
+static void luaL_register(lua_State *L, const char *libname, const luaL_Reg *l)
+{
+	lua_getorcreate_table(L, libname);
+	luaL_setfuncs(L, l, 0);
+	lua_pop(L, 1);
+}
+
 
 /**
 * Initialize the Premake Lua environment.
@@ -203,6 +232,19 @@ int premake_init(lua_State* L)
 }
 
 
+static int getErrorColor(lua_State* L)
+{
+	int color; 
+
+	lua_getglobal(L, "term");
+	lua_pushstring(L, "errorColor");
+	lua_gettable(L, -2);
+	color = luaL_checkinteger(L, -1);
+	lua_pop(L, 2);
+
+	return color;
+}
+
 
 int premake_execute(lua_State* L, int argc, const char** argv, const char* script)
 {
@@ -224,7 +266,10 @@ int premake_execute(lua_State* L, int argc, const char** argv, const char* scrip
 
 	/* Find and run the main Premake bootstrapping script */
 	if (run_premake_main(L, script) != OKAY) {
+		int color = term_doGetTextColor();
+		term_doSetTextColor(getErrorColor(L));
 		printf(ERROR_MESSAGE, lua_tostring(L, -1));
+		term_doSetTextColor(color);
 		return !OKAY;
 	}
 
@@ -240,7 +285,10 @@ int premake_execute(lua_State* L, int argc, const char** argv, const char* scrip
 	/* and call the main entry point */
 	lua_getglobal(L, "_premake_main");
 	if (lua_pcall(L, 0, 1, iErrFunc) != OKAY) {
+		int color = term_doGetTextColor();
+		term_doSetTextColor(getErrorColor(L));
 		printf(ERROR_MESSAGE, lua_tostring(L, -1));
+		term_doSetTextColor(color);
 		return !OKAY;
 	}
 	else {
@@ -497,7 +545,7 @@ static int process_arguments(lua_State* L, int argc, const char** argv)
 	for (i = 1; i < argc; ++i)
 	{
 		lua_pushstring(L, argv[i]);
-		lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
+		lua_rawseti(L, -2, luaL_len(L, -2) + 1);
 
 		/* The /scripts option gets picked up here; used later to find the
 		* manifest and scripts later if necessary */

@@ -61,7 +61,7 @@
 		end
 		return dirs
 	end
-	
+
 	local function get_library_search_path()
 		local path
 		if os.istarget("windows") then
@@ -151,14 +151,14 @@
 	function os.findheader(headerpath, headerdirs)
 		-- headerpath: a partial header file path
 		-- headerdirs: additional header search paths
-		
+
 		local path = get_library_search_path()
-		
+
 		-- replace all /lib by /include
 		path = path .. ':'
-		path = path:gsub ('/lib[0-9]*([:/])', '/include%1') 
+		path = path:gsub ('/lib[0-9]*([:/])', '/include%1')
 		path = path:sub (1, #path - 1)
-		
+
 		local userpath = ""
 
 		if type(headerdirs) == "string" then
@@ -174,7 +174,7 @@
 				path = userpath
 			end
 		end
-		
+
 		local result = os.pathsearch (headerpath, path)
 		return result
 	end
@@ -460,17 +460,17 @@
 
 		local pipe = io.popen(cmd .. " 2>&1")
 		local result = pipe:read('*a')
-		local b, exitcode = pipe:close()
-		if not b then
-			exitcode = -1
-		end
+		local success, what, code = pipe:close()
+		if success then
+			-- chomp trailing newlines
+			if result then
+				result = string.gsub(result, "[\r\n]+$", "")
+			end
 
-		-- chomp trailing newlines
-		if result then
-			result = string.gsub(result, "[\r\n]+$", "")
+			return result, code, what
+		else
+			return nil, code, what
 		end
-
-		return result, exitcode
 	end
 
 
@@ -599,7 +599,8 @@
 				return "echo " .. v
 			end,
 			mkdir = function(v)
-				return "mkdir " .. path.translate(path.normalize(v))
+				v = path.translate(path.normalize(v))
+				return "IF NOT EXIST " .. v .. " (mkdir " .. v .. ")"
 			end,
 			move = function(v)
 				return "move /Y " .. path.translate(path.normalize(v))
@@ -712,4 +713,23 @@
 			os._uuids[id] = name
 		end
 		return id
+	end
+
+
+--
+-- Get a set of tags for different 'platforms'
+--
+
+	function os.getSystemTags(name)
+		local tags =
+		{
+			["aix"]      = { "aix",     "posix" },
+			["bsd"]      = { "bsd",     "posix" },
+			["haiku"]    = { "haiku",   "posix" },
+			["linux"]    = { "linux",   "posix" },
+			["macosx"]   = { "macosx",  "darwin", "posix" },
+			["solaris"]  = { "solaris", "posix" },
+			["windows"]  = { "windows", "win32" },
+		}
+		return tags[name] or name
 	end

@@ -145,6 +145,7 @@
 		kind = "string",
 		allowed = {
 			"Default",
+			"ASCII",
 			"MBCS",
 			"Unicode",
 		}
@@ -1570,6 +1571,13 @@
 		trigger     = "version",
 		description = "Display version information"
 	}
+
+	if http ~= nil then
+		newoption {
+			trigger = "insecure",
+			description = "forfit SSH certification checks."
+		}
+	end
 
 
 -----------------------------------------------------------------------------
