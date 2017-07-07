@@ -9,6 +9,8 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+#include <stdlib.h>
+
 #define PREMAKE_VERSION        "5.0.0-dev"
 #define PREMAKE_COPYRIGHT      "Copyright (C) 2002-2017 Jason Perkins and the Premake Project"
 #define PREMAKE_PROJECT_URL    "https://github.com/premake/premake-core/wiki"
@@ -48,7 +50,6 @@
 #if PLATFORM_WINDOWS
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <stdlib.h>
 #else
 #include <unistd.h>
 #endif
@@ -140,6 +141,7 @@ int os_rmdir(lua_State* L);
 int os_stat(lua_State* L);
 int os_uuid(lua_State* L);
 int os_writefile_ifnotequal(lua_State* L);
+int os_touchfile(lua_State* L);
 int os_compile(lua_State* L);
 int string_endswith(lua_State* L);
 int string_hash(lua_State* L);
@@ -186,7 +188,7 @@ typedef struct
 } buildin_mapping;
 
 extern const buildin_mapping builtin_scripts[];
-
+extern void  registerModules(lua_State* L);
 
 int premake_init(lua_State* L);
 int premake_execute(lua_State* L, int argc, const char** argv, const char* script);

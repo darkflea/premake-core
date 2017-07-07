@@ -86,6 +86,7 @@ static const luaL_Reg os_functions[] = {
 	{ "stat",                   os_stat },
 	{ "uuid",                   os_uuid },
 	{ "writefile_ifnotequal",   os_writefile_ifnotequal },
+	{ "touchfile",              os_touchfile            },
 	{ "compile",                os_compile },
 	{ NULL, NULL }
 };
@@ -228,13 +229,18 @@ int premake_init(lua_State* L)
 	lua_newtable(L);
 	lua_setglobal(L, "premake");
 
+#if !defined(PREMAKE_NO_BUILTIN_SCRIPTS)
+	/* let native modules initialize themselves */
+	registerModules(L);
+#endif
+
 	return OKAY;
 }
 
 
 static int getErrorColor(lua_State* L)
 {
-	int color; 
+	int color;
 
 	lua_getglobal(L, "term");
 	lua_pushstring(L, "errorColor");

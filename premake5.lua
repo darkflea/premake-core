@@ -157,6 +157,7 @@
 		{
 			"*.txt", "**.lua",
 			"src/**.h", "src/**.c",
+			"modules/**.h", "modules/**.c",
 		}
 
 		excludes

@@ -707,6 +707,16 @@
 	}
 
 	api.register {
+		name = "sharedlibtype",
+		scope = "project",
+		kind = "string",
+		allowed = {
+			"OSXBundle",
+			"OSXFramework",
+		},
+	}
+
+	api.register {
 		name = "language",
 		scope = "project",
 		kind = "string",
@@ -1002,6 +1012,16 @@
 	}
 
 	api.register {
+		name = "resourcegenerator",
+		scope = "project",
+		kind = "string",
+        allowed = {
+            "internal",
+            "public"
+        }
+	}
+
+	api.register {
 		name = "rtti",
 		scope = "config",
 		kind = "string",
@@ -1149,7 +1169,9 @@
 			value = value:lower()
 			local tool, version = p.tools.canonical(value)
 			if tool then
-				return value
+				return p.tools.normalize(value)
+			else
+				return nil
 			end
 		end,
 	}
@@ -1242,6 +1264,17 @@
 		name = "editorintegration",
 		scope = "workspace",
 		kind = "boolean",
+	}
+
+	api.register {
+		name = "preferredtoolarchitecture",
+		scope = "workspace",
+		kind = "string",
+		allowed = {
+			"Default",
+			p.X86,
+			p.X86_64,
+		}
 	}
 
 -----------------------------------------------------------------------------

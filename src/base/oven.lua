@@ -71,7 +71,7 @@
 		for key, value in pairs(_OPTIONS) do
 			local term = key
 			if value ~= "" then
-				term = term .. "=" .. value
+				term = term .. "=" .. tostring(value)
 			end
 			table.insert(options, term)
 		end
@@ -531,7 +531,7 @@
 
 		local system = p.action.current().targetos or os.target()
 		local architecture = nil
-		local toolset = nil
+		local toolset = p.action.current().toolset
 
 		if platform then
 			system = p.api.checkValue(p.fields.system, platform) or system
@@ -692,7 +692,7 @@
 
 			-- Only consider sources that actually generate object files
 
-			if not path.iscppfile(file.abspath) then
+			if not path.isnativefile(file.abspath) then
 				return
 			end
 

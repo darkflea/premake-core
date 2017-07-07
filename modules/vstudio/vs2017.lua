@@ -21,10 +21,11 @@
 		-- Visual Studio always uses Windows path and naming conventions
 
 		targetos = "windows",
+		toolset  = "msc-v141",
 
 		-- The capabilities of this action
 
-		valid_kinds     = { "ConsoleApp", "WindowedApp", "StaticLib", "SharedLib", "Makefile", "None", "Utility", "Installer" },
+		valid_kinds     = { "ConsoleApp", "WindowedApp", "StaticLib", "SharedLib", "Makefile", "None", "Utility" },
 		valid_languages = { "C", "C++", "C#" },
 		valid_tools     = {
 			cc     = { "msc"   },
@@ -63,6 +64,5 @@
 			targetFramework = "4.5.2",
 			toolsVersion    = "15.0",
 			filterToolsVersion = "4.0",
-			platformToolset = "v141"
 		}
 	}
