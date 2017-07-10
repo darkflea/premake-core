@@ -21,7 +21,7 @@ deploy:
   provider: GitHub
   auth_token: 
     secure: HHv48+XIpc9KD99ksjlsM2E7rQmpJ8xktezISBJi3Qu+w4uVMpoUNumDBQpk9fUq
-  artifact: bin/release/premake5
+  artifact: bin\release\premake5
   draft: true
   prerelease: false
   on:
