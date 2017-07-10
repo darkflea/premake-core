@@ -7,20 +7,11 @@ script:
   - bin/release/premake5 test
 
 deploy:
-  - provider: releases
-    api_key: $GH
-    draft: true
-    overwrite: true
-    file: bin/release/premake5
-    skip_cleanup: true
-    on:
-      tags: true
-  - provider: releases
-    api_key: $GH
-    name: development
-    overwrite: true
-    draft: true
-    file: bin/release/premake5
-    skip_cleanup: true
-    on:
-      branch: master
+  provider: releases
+  api_key: $GH
+  draft: true
+  overwrite: true
+  file: bin/release/premake5
+  skip_cleanup: true
+  on:
+    tags: true

@@ -11,33 +11,23 @@ before_build:
 build_script:
   - cmd: call "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat"
   - cmd: nmake -f Bootstrap.mak MSDEV=vs2015 windows
+  - cmd: 7z a premake-windows.zip bin\release\premake5.exe
 
 test_script:
   - cmd: bin\release\premake5 test
 
 artifacts:
-  - path: bin\release\premake5.exe
+  - path: premake-windows.zip
     name: premake
 
 deploy:
-  - description: 'ZPM Release'
-    provider: GitHub
-    auth_token: 
-      secure: HHv48+XIpc9KD99ksjlsM2E7rQmpJ8xktezISBJi3Qu+w4uVMpoUNumDBQpk9fUq
-    artifact: premake
-    draft: true
-    force_update: true
-    prerelease: false
-    on:
-      appveyor_repo_tag: true
-  - description: 'ZPM Development'
-    tag: "development"
-    provider: GitHub
-    auth_token: 
-      secure: HHv48+XIpc9KD99ksjlsM2E7rQmpJ8xktezISBJi3Qu+w4uVMpoUNumDBQpk9fUq
-    artifact: premake
-    draft: true
-    force_update: true
-    prerelease: false
-    on:
-      branch: master
+  description: 'ZPM Release'
+  provider: GitHub
+  auth_token: 
+    secure: HHv48+XIpc9KD99ksjlsM2E7rQmpJ8xktezISBJi3Qu+w4uVMpoUNumDBQpk9fUq
+  artifact: premake
+  draft: true
+  force_update: true
+  prerelease: false
+  on:
+    appveyor_repo_tag: true
