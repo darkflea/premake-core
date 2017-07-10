@@ -16,7 +16,7 @@ test_script:
   - cmd: bin\release\premake5 test
 
 artifacts:
-  - path: bin\release\premake5
+  - path: bin\release\premake5.exe
     name: premake
 
 deploy:
