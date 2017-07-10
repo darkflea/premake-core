@@ -31,7 +31,7 @@ deploy:
     on:
       appveyor_repo_tag: true
   - description: 'ZPM Development'
-    tag: "dev-v$(Get-Date -format yy.MM.dd)"
+    tag: "development"
     provider: GitHub
     auth_token: 
       secure: HHv48+XIpc9KD99ksjlsM2E7rQmpJ8xktezISBJi3Qu+w4uVMpoUNumDBQpk9fUq
