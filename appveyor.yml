@@ -30,7 +30,8 @@ deploy:
     prerelease: false
     on:
       appveyor_repo_tag: true
-  - description: 'ZPM Nightly'
+  - description: 'ZPM Development'
+    tag: "dev-v$(Get-Date -format yy.MM.dd)"
     provider: GitHub
     auth_token: 
       secure: HHv48+XIpc9KD99ksjlsM2E7rQmpJ8xktezISBJi3Qu+w4uVMpoUNumDBQpk9fUq
