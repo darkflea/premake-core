@@ -3,20 +3,21 @@ os:
   - osx
 sudo: required
 script:
-  - bash scripts/install-travis.sh
-
   - make -f Bootstrap.mak $TRAVIS_OS_NAME
   - bin/release/premake5 test
 
 deploy:
   - provider: releases
     api_key: $GH
+    draft: true
     file: bin/release/premake5
     skip_cleanup: true
     on:
       tags: true
   - provider: releases
     api_key: $GH
+    tag_name: development
+    draft: true
     file: bin/release/premake5
     skip_cleanup: true
     on:
