@@ -20,13 +20,23 @@ artifacts:
     name: premake
 
 deploy:
-  description: 'ZPM Release'
-  provider: GitHub
-  auth_token: 
-    secure: HHv48+XIpc9KD99ksjlsM2E7rQmpJ8xktezISBJi3Qu+w4uVMpoUNumDBQpk9fUq
-  artifact: premake
-  draft: true
-  force_update: true
-  prerelease: false
-  on:
-    appveyor_repo_tag: true
+  - description: 'ZPM Release'
+    provider: GitHub
+    auth_token: 
+      secure: HHv48+XIpc9KD99ksjlsM2E7rQmpJ8xktezISBJi3Qu+w4uVMpoUNumDBQpk9fUq
+    artifact: premake
+    draft: true
+    force_update: true
+    prerelease: false
+    on:
+      appveyor_repo_tag: true
+  - description: 'ZPM Nightly'
+    provider: GitHub
+    auth_token: 
+      secure: HHv48+XIpc9KD99ksjlsM2E7rQmpJ8xktezISBJi3Qu+w4uVMpoUNumDBQpk9fUq
+    artifact: premake
+    draft: true
+    force_update: true
+    prerelease: false
+    on:
+      branch: master
