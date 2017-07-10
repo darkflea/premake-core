@@ -7,3 +7,17 @@ script:
 
  - make -f Bootstrap.mak $TRAVIS_OS_NAME
  - bin/release/premake5 test
+
+ deploy:
+  - provider: releases
+   api_key: $GH
+   file: bin/release/premake5
+   skip_cleanup: true
+   on:
+     tags: true
+  - provider: releases
+   api_key: $GH
+   file: bin/release/premake5
+   skip_cleanup: true
+   on:
+     branch: master
