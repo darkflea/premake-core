@@ -10,7 +10,7 @@ before_build:
 
 build_script:
   - cmd: call "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat"
-  - cmd: nmake -f Bootstrap.mak MSDEV=vs2017 windows
+  - cmd: nmake -f Bootstrap.mak MSDEV=vs2015 windows
 
 test_script:
   - cmd: bin\release\premake5 test
