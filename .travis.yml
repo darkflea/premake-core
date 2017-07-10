@@ -3,10 +3,10 @@ os:
   - osx
 sudo: required
 script:
- - bash scripts/install-travis.sh
+  - bash scripts/install-travis.sh
 
- - make -f Bootstrap.mak $TRAVIS_OS_NAME
- - bin/release/premake5 test
+  - make -f Bootstrap.mak $TRAVIS_OS_NAME
+  - bin/release/premake5 test
 
  deploy:
   - provider: releases
