@@ -14,3 +14,14 @@ build_script:
 
 test_script:
   - cmd: bin\release\premake5 test
+
+
+deploy:
+  description: 'ZPM Release'
+  provider: GitHub
+  auth_token: $env:GH
+  artifact: bin/release/premake5
+  draft: true
+  prerelease: false
+  on:
+    appveyor_repo_tag: true 
