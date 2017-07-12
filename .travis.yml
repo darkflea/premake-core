@@ -6,8 +6,8 @@ script:
   - make -f Bootstrap.mak $TRAVIS_OS_NAME
   - bin/release/premake5 test
 
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then tar -zcvf premake-linux.tar.gz -C bin/release  .; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then tar -zcvf premake-macosx.tar.gz -C bin/release .; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then (cd bin/release; tar -zcvf premake-linux.tar.gz premake5; cd ../..; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then (cd bin/release; tar -zcvf premake-macosx.tar.gz premake5; cd ../..; fi
 deploy:
   provider: releases
   api_key: $GH
