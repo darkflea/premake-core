@@ -11,13 +11,13 @@ before_build:
 build_script:
   - cmd: call "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat"
   - cmd: nmake -f Bootstrap.mak MSDEV=vs2015 windows
-  - cmd: 7z a premake-windows.zip bin\release\premake5.exe
+  - cmd: (cd bin\release\ && 7z a premake-windows.zip premake5.exe && cd ../../)
 
 test_script:
   - cmd: bin\release\premake5 test
 
 artifacts:
-  - path: premake-windows.zip
+  - path: bin\release\premake-windows.zip
     name: premake
 
 deploy:
