@@ -147,7 +147,7 @@
 			for i = 1, n do
 				local v = arr[i]
 				if v then
-					func(v)
+					func(v, i)
 				end
 			end
 		end
@@ -401,12 +401,12 @@
 		if not translation then return {} end
 
 		local result = {}
-		for _, value in ipairs(arr) do
+		for i = 1, #arr do
 			local tvalue
 			if type(translation) == "function" then
-				tvalue = translation(value)
+				tvalue = translation(arr[i])
 			else
-				tvalue = translation[value]
+				tvalue = translation[arr[i]]
 			end
 			if (tvalue) then
 				table.insert(result, tvalue)

@@ -63,8 +63,9 @@
 		context.addFilter(self, "_ACTION", _ACTION)
 		context.addFilter(self, "action", _ACTION)
 
-		self.system = self.system or p.action.current().targetos or os.target()
+		self.system = self.system or os.target()
 		context.addFilter(self, "system", os.getSystemTags(self.system))
+		context.addFilter(self, "host", os.getSystemTags(os.host()))
 
 		-- Add command line options to the filtering options
 		local options = {}
@@ -204,8 +205,9 @@
 		-- Now filter on the current system and architecture, allowing the
 		-- values that might already in the context to override my defaults.
 
-		self.system = self.system or p.action.current().targetos or os.target()
+		self.system = self.system or os.target()
 		context.addFilter(self, "system", os.getSystemTags(self.system))
+		context.addFilter(self, "host", os.getSystemTags(os.host()))
 		context.addFilter(self, "architecture", self.architecture)
 		context.addFilter(self, "tags", self.tags)
 
@@ -249,6 +251,7 @@
 
 		-- Don't allow a project-level system setting to influence the configurations
 
+		local projectSystem = self.system
 		self.system = nil
 
 		-- Finally, step through the list of configurations I built above and
@@ -282,6 +285,9 @@
 		if p.project.isnative(self) then
 			oven.assignObjectSequences(self)
 		end
+
+		-- at the end, restore the system, so it's usable elsewhere.
+		self.system = projectSystem
 	end
 
 
@@ -529,7 +535,7 @@
 		-- More than a convenience; this is required to work properly with
 		-- external Visual Studio project files.
 
-		local system = p.action.current().targetos or os.target()
+		local system = os.target()
 		local architecture = nil
 		local toolset = p.action.current().toolset
 
@@ -582,6 +588,7 @@
 		-- allow the project script to override the default system
 		ctx.system = ctx.system or system
 		context.addFilter(ctx, "system", os.getSystemTags(ctx.system))
+		context.addFilter(ctx, "host", os.getSystemTags(os.host()))
 
 		-- allow the project script to override the default architecture
 		ctx.architecture = ctx.architecture or architecture
@@ -638,20 +645,20 @@
 		-- I need to look at them all.
 
 		for cfg in p.project.eachconfig(prj) do
-			local function addFile(fname)
+			local function addFile(fname, i)
 
 				-- If this is the first time I've seen this file, start a new
 				-- file configuration for it. Track both by key for quick lookups
 				-- and indexed for ordered iteration.
-
-				if not files[fname] then
-					local fcfg = p.fileconfig.new(fname, prj)
+				local fcfg = files[fname]
+				if not fcfg then
+					fcfg = p.fileconfig.new(fname, prj)
+					fcfg.order = i
 					files[fname] = fcfg
 					table.insert(files, fcfg)
 				end
 
-				p.fileconfig.addconfig(files[fname], cfg)
-
+				p.fileconfig.addconfig(fcfg, cfg)
 			end
 
 			table.foreachi(cfg.files, addFile)
@@ -660,7 +667,7 @@
 			-- packages.config file to the project. Is there a better place to
 			-- do this?
 
-			if #prj.nuget > 0 then
+			if #prj.nuget > 0 and (_ACTION < "vs2017" or p.project.iscpp(prj)) then
 				addFile("packages.config")
 			end
 		end

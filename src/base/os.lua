@@ -222,7 +222,8 @@
 --
 
 	function os.istarget(id)
-		return (os.target():lower() == id:lower())
+		local tags = os.getSystemTags(os.target())
+		return table.contains(tags, id:lower())
 	end
 
 	function os.is(id)
@@ -237,7 +238,8 @@
 --
 
 	function os.ishost(id)
-		return (os.host():lower() == id:lower())
+		local tags = os.getSystemTags(os.host())
+		return table.contains(tags, id:lower())
 	end
 
 
@@ -657,9 +659,18 @@
 
 
 ---
+-- Apply os slashes for decorated command paths.
+---
+	function os.translateCommandAndPath(path, map)
+		if map == 'windows' then
+			return path.translate(result)
+		end
+		return path
+	end
+
+---
 -- Translate decorated command paths into their OS equivalents.
 ---
-
 	function os.translateCommandsAndPaths(cmds, basedir, location, map)
 		local translatedBaseDir = path.getrelative(location, basedir)
 
@@ -667,12 +678,10 @@
 
 		local translateFunction = function(value)
 			local result = path.join(translatedBaseDir, value)
-			if value:endswith('/') or value:endswith('\\') or
+			result = os.translateCommandAndPath(result, map)
+			if value:endswith('/') or value:endswith('\\') or -- if orginal path ends with a slash then ensure the same
 			   value:endswith('/"') or value:endswith('\\"') then
 				result = result .. '/'
-			end
-			if map == 'windows' then
-				result = path.translate(result)
 			end
 			return result
 		end
@@ -720,16 +729,17 @@
 -- Get a set of tags for different 'platforms'
 --
 
+	os.systemTags =
+	{
+		["aix"]      = { "aix",     "posix" },
+		["bsd"]      = { "bsd",     "posix" },
+		["haiku"]    = { "haiku",   "posix" },
+		["linux"]    = { "linux",   "posix" },
+		["macosx"]   = { "macosx",  "darwin", "posix" },
+		["solaris"]  = { "solaris", "posix" },
+		["windows"]  = { "windows", "win32" },
+	}
+
 	function os.getSystemTags(name)
-		local tags =
-		{
-			["aix"]      = { "aix",     "posix" },
-			["bsd"]      = { "bsd",     "posix" },
-			["haiku"]    = { "haiku",   "posix" },
-			["linux"]    = { "linux",   "posix" },
-			["macosx"]   = { "macosx",  "darwin", "posix" },
-			["solaris"]  = { "solaris", "posix" },
-			["windows"]  = { "windows", "win32" },
-		}
-		return tags[name] or name
+		return os.systemTags[name:lower()] or { name:lower() }
 	end

@@ -349,8 +349,10 @@
 			end
 		else
 			field.allowed = field.allowed or {}
-			table.insert(field.allowed, value)
-			field.allowed[value:lower()] = value
+			if field.allowed[value:lower()] == nil then
+				table.insert(field.allowed, value)
+				field.allowed[value:lower()] = value
+			end
 		end
 	end
 
@@ -1046,10 +1048,7 @@
 	premake.field.kind("path", {
 		paths = true,
 		store = function(field, current, value, processor)
-			if string.sub(value, 1, 2) == "%{" then
-				return value
-			end
-			return path.getabsolute(value)
+			return path.deferredjoin(os.getcwd(), value)
 		end,
 		compare = function(field, a, b, processor)
 			return (a == b)

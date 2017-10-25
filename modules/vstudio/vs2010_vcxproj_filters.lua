@@ -1,7 +1,7 @@
 --
 -- vs2010_vcxproj_filters.lua
 -- Generate a Visual Studio 201x C/C++ filters file.
--- Copyright (c) 2009-2014 Jason Perkins and the Premake project
+-- Copyright (c) Jason Perkins and the Premake project
 --
 
 	local p = premake
@@ -57,7 +57,7 @@
 			p.push()
 			tree.traverse(tr, {
 				onbranch = function(node, depth)
-					p.push('<Filter Include="%s">', path.translate(node.path))
+					p.push('<Filter Include="%s">', path.translate(node.path, '\\'))
 					p.w('<UniqueIdentifier>{%s}</UniqueIdentifier>', os.uuid(node.path))
 					p.pop('</Filter>')
 				end
@@ -80,7 +80,7 @@
 			for _, file in ipairs(files) do
 				if file.parent.path then
 					p.push('<%s Include=\"%s\">', tag, path.translate(file.relpath))
-					p.w('<Filter>%s</Filter>', path.translate(file.parent.path))
+					p.w('<Filter>%s</Filter>', path.translate(file.parent.path, '\\'))
 					p.pop('</%s>', tag)
 				else
 					p.w('<%s Include=\"%s\" />', tag, path.translate(file.relpath))

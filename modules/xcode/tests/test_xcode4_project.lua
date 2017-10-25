@@ -50,7 +50,7 @@
 
 	function suite.setup()
 		_TARGET_OS = "macosx"
-		_ACTION = "xcode4"
+		p.action.set('xcode4')
 		io.eol = "\n"
 		xcode.used_ids = { } -- reset the list of generated IDs
 		wks = test.createWorkspace()
@@ -79,7 +79,6 @@
 				CONFIGURATION_BUILD_DIR = "$(SYMROOT)";
 				CONFIGURATION_TEMP_DIR = "$(OBJROOT)";
 				COPY_PHASE_STRIP = NO;
-				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_ENABLE_FIX_AND_CONTINUE = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;

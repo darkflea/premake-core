@@ -1,7 +1,7 @@
 --
 -- vs2010_vcxproj.lua
 -- Generate a Visual Studio 201x C/C++ project.
--- Copyright (c) 2009-2015 Jason Perkins and the Premake project
+-- Copyright (c) Jason Perkins and the Premake project
 --
 
 	local p = premake
@@ -268,6 +268,7 @@
 			return {
 				m.ruleVars,
 				m.buildEvents,
+				m.buildLog,
 			}
 		else
 			return {
@@ -493,7 +494,7 @@
 
 			if #manifests > 0 then
 		p.push('<Manifest>')
-		m.element("AdditionalManifestFiles", nil, "%s %%(AdditionalManifestFiles)", table.concat(manifests, " "))
+		m.element("AdditionalManifestFiles", nil, "%s;%%(AdditionalManifestFiles)", table.concat(manifests, ";"))
 		p.pop('</Manifest>')
 	end
 		end
@@ -667,6 +668,7 @@
 						m.exceptionHandling,
 						m.compileAsManaged,
 						m.runtimeTypeInfo,
+						m.warningLevelFile,
 					}
 				else
 					return {
@@ -792,6 +794,7 @@
 			local fileCfgFunc = function(fcfg, condition)
 				if fcfg then
 					return {
+						m.MasmPreprocessorDefinitions,
 						m.excludedFromBuild,
 						m.exceptionHandlingSEH,
 					}
@@ -817,6 +820,27 @@
 		end
 	}
 
+---
+-- Image group
+---
+	m.categories.Image = {
+		name       = "Image",
+		extensions = { ".gif", ".jpg", ".jpe", ".png", ".bmp", ".dib", "*.tif", "*.wmf", "*.ras", "*.eps", "*.pcx", "*.pcd", "*.tga", "*.dds" },
+		priority   = 8,
+
+		emitFiles = function(prj, group)
+			local fileCfgFunc = function(fcfg, condition)
+				return {
+					m.excludedFromBuild
+				}
+			end
+			m.emitFiles(prj, group, "Image", nil, fileCfgFunc)
+		end,
+
+		emitFilter = function(prj, group)
+			m.filterGroup(prj, group, "Image")
+		end
+	}
 
 ---
 -- Categorize files into groups.
@@ -1005,7 +1029,7 @@
 						if not checkFunc or checkFunc(cfg, fcfg) then
 							p.callArray(fileCfgFunc, fcfg, m.configPair(cfg))
 						end
-						end
+					end
 					if #m.conditionalElements > 0 then
 						m.emitConditionalElements(prj)
 					end
@@ -1451,6 +1475,10 @@
 			m.element("ExceptionHandling", condition, "false")
 		elseif cfg.exceptionhandling == "SEH" then
 			m.element("ExceptionHandling", condition, "Async")
+		elseif cfg.exceptionhandling == "On" then
+			m.element("ExceptionHandling", condition, "Sync")
+		elseif cfg.exceptionhandling == "CThrow" then
+			m.element("ExceptionHandling", condition, "SyncCThrow")
 		end
 	end
 
@@ -1688,9 +1716,11 @@
 	end
 
 	function m.importNuGetTargets(prj)
-		for i = 1, #prj.nuget do
-			local targetsFile = nuGetTargetsFile(prj, prj.nuget[i])
-			p.x('<Import Project="%s" Condition="Exists(\'%s\')" />', targetsFile, targetsFile)
+		if not vstudio.nuget2010.supportsPackageReferences(prj) then
+			for i = 1, #prj.nuget do
+				local targetsFile = nuGetTargetsFile(prj, prj.nuget[i])
+				p.x('<Import Project="%s" Condition="Exists(\'%s\')" />', targetsFile, targetsFile)
+			end
 		end
 	end
 
@@ -1866,6 +1896,13 @@
 	end
 
 
+	function m.MasmPreprocessorDefinitions(cfg, condition)
+		if cfg.defines then
+			m.preprocessorDefinitions(cfg, cfg.defines, false, condition)
+		end
+	end
+
+
 	function m.minimalRebuild(cfg)
 		if config.isOptimizedBuild(cfg) or
 		   cfg.flags.NoMinimalRebuild or
@@ -1932,6 +1969,9 @@
 	function m.windowsSDKDesktopARMSupport(cfg)
 		if cfg.architecture == p.ARM then
 			p.w('<WindowsSDKDesktopARMSupport>true</WindowsSDKDesktopARMSupport>')
+		end
+		if cfg.architecture == p.ARM64 then
+			p.w('<WindowsSDKDesktopARM64Support>true</WindowsSDKDesktopARM64Support>')
 		end
 	end
 
@@ -2028,7 +2068,7 @@
 		end
 		if version then
 			if cfg.kind == p.NONE or cfg.kind == p.MAKEFILE then
-				if p.config.hasFile(cfg, path.iscppfile) then
+				if p.config.hasFile(cfg, path.iscppfile) or _ACTION >= "vs2015" then
 					m.element("PlatformToolset", nil, version)
 				end
 			else
@@ -2177,6 +2217,8 @@
 		local runtimes = {
 			StaticDebug   = "MultiThreadedDebug",
 			StaticRelease = "MultiThreaded",
+			StaticDLLDebug = "MultiThreadedDebugDLL",
+			StaticDLLRelease = "MultiThreadedDLL"
 		}
 		local runtime = runtimes[config.getruntime(cfg)]
 		if runtime then
@@ -2348,10 +2390,17 @@
 	end
 
 
-
 	function m.warningLevel(cfg)
 		local map = { Off = "TurnOffAllWarnings", Extra = "Level4" }
-		m.element("WarningLevel", nil, "%s", map[cfg.warnings] or "Level3")
+		m.element("WarningLevel", nil, map[cfg.warnings] or "Level3")
+	end
+
+
+	function m.warningLevelFile(cfg, condition)
+		local map = { Off = "TurnOffAllWarnings", Extra = "Level4" }
+		if cfg.warnings then
+			m.element("WarningLevel", condition, map[cfg.warnings] or "Level3")
+		end
 	end
 
 
@@ -2421,7 +2470,7 @@
 				else
 					element.setting = value .. table.concat(arg)
 				end
-		else
+			else
 				element.setting = element.value
 			end
 			table.insert(m.conditionalElements, element)

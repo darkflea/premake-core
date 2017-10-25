@@ -1,7 +1,7 @@
 --
 -- vs200x_vcproj.lua
--- Generate a Visual Studio 2002-2008 C/C++ project.
--- Copyright (c) 2009-2014 Jason Perkins and the Premake project
+-- Generate a Visual Studio 2005-2008 C/C++ project.
+-- Copyright (c) Jason Perkins and the Premake project
 --
 
 	local p = premake
@@ -803,7 +803,7 @@
 				links[i] = path.translate(link)
 			end
 		else
-			links = toolset.getlinks(cfg, not ex)
+			links = path.translate(toolset.getlinks(cfg, not ex))
 		end
 
 		if #links > 0 then

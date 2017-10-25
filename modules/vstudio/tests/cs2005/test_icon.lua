@@ -6,7 +6,7 @@
 
 	local p = premake
 	local suite = test.declare("vstudio_cs2005_icon")
-	local cs2005 = p.vstudio.cs2005
+	local dn2005 = p.vstudio.dotnetbase
 
 
 --
@@ -16,12 +16,13 @@
 	local wks
 
 	function suite.setup()
+		p.action.set("vs2005")
 		wks, prj = test.createWorkspace()
 	end
 
 	local function prepare()
 		prj = test.getproject(wks, 1)
-		cs2005.applicationIcon(prj)
+		dn2005.applicationIcon(prj)
 	end
 
 

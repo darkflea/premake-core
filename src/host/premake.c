@@ -1,13 +1,14 @@
 ﻿/**
 * \file   premake.c
 * \brief  Program entry point.
-* \author Copyright (c) 2002-2015 Jason Perkins and the Premake project
+ * \author Copyright (c) 2002-2017 Jason Perkins and the Premake project
 */
 
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include "premake.h"
+#include "lua_shimtable.h"
 
 #if PLATFORM_MACOSX
 #include <CoreFoundation/CFBundle.h>
@@ -48,6 +49,9 @@ static const luaL_Reg path_functions[] = {
 	{ "getrelative", path_getrelative },
 	{ "isabsolute",  path_isabsolute },
 	{ "join", path_join },
+	{ "deferredjoin", path_deferred_join },
+	{ "hasdeferredjoin", path_has_deferred_join },
+	{ "resolvedeferredjoin", path_resolve_deferred_join },
 	{ "normalize", path_normalize },
 	{ "translate", path_translate },
 	{ "wildcards", path_wildcards },
@@ -88,6 +92,11 @@ static const luaL_Reg os_functions[] = {
 	{ "writefile_ifnotequal",   os_writefile_ifnotequal },
 	{ "touchfile",              os_touchfile            },
 	{ "compile",                os_compile },
+	{ NULL, NULL }
+};
+
+static const luaL_Reg premake_functions[] = {
+	{ "getEmbeddedResource", premake_getEmbeddedResource },
 	{ NULL, NULL }
 };
 
@@ -162,7 +171,7 @@ static void lua_getorcreate_table(lua_State *L, const char *modname)
 }
 
 
-static void luaL_register(lua_State *L, const char *libname, const luaL_Reg *l)
+void luaL_register(lua_State *L, const char *libname, const luaL_Reg *l)
 {
 	lua_getorcreate_table(L, libname);
 	luaL_setfuncs(L, l, 0);
@@ -177,6 +186,7 @@ int premake_init(lua_State* L)
 {
 	const char* value;
 
+	luaL_register(L, "premake",  premake_functions);
 	luaL_register(L, "criteria", criteria_functions);
 	luaL_register(L, "debug", debug_functions);
 	luaL_register(L, "path", path_functions);
@@ -196,6 +206,9 @@ int premake_init(lua_State* L)
 #ifdef PREMAKE_YAML
 	luaL_register(L, "yaml", yaml_functions);
 #endif
+
+	lua_pushlightuserdata(L, &s_shimTable);
+	lua_rawseti(L, LUA_REGISTRYINDEX, 'SHIM');
 
 	/* push the application metadata */
 	lua_pushstring(L, LUA_COPYRIGHT);
@@ -225,10 +238,6 @@ int premake_init(lua_State* L)
 	os_getcwd(L);
 	lua_setglobal(L, "_WORKING_DIR");
 
-	/* start the premake namespace */
-	lua_newtable(L);
-	lua_setglobal(L, "premake");
-
 #if !defined(PREMAKE_NO_BUILTIN_SCRIPTS)
 	/* let native modules initialize themselves */
 	registerModules(L);
@@ -238,24 +247,63 @@ int premake_init(lua_State* L)
 }
 
 
-static int getErrorColor(lua_State* L)
+static void setErrorColor(lua_State* L)
 {
-	int color;
+	int errorColor = 12;
 
 	lua_getglobal(L, "term");
 	lua_pushstring(L, "errorColor");
 	lua_gettable(L, -2);
-	color = luaL_checkinteger(L, -1);
-	lua_pop(L, 2);
 
-	return color;
+	if (!lua_isnil(L, -1))
+		errorColor = (int)luaL_checkinteger(L, -1);
+
+	term_doSetTextColor(errorColor);
+
+	lua_pop(L, 2);
 }
 
 
+
+void printLastError(lua_State* L)
+{
+	const char* message = lua_tostring(L, -1);
+	int oldColor = term_doGetTextColor();
+	setErrorColor(L);
+	printf(ERROR_MESSAGE, message);
+	term_doSetTextColor(oldColor);
+}
+
+static int lua_error_handler(lua_State* L)
+{
+	// in debug mode, show full traceback on all errors
+#if !defined(NDEBUG)
+	lua_getglobal(L, "debug");
+	lua_getfield(L, -1, "traceback");
+	lua_remove(L, -2);     // remove debug table
+	lua_insert(L, -2);     // insert traceback function before error message
+	lua_pushinteger(L, 3); // push level
+	lua_call(L, 2, 1);     // call traceback
+#else
+	(void) L;
+#endif
+
+	return 1;
+}
+
+int premake_pcall(lua_State* L, int nargs, int nresults)
+{
+	lua_pushcfunction(L, lua_error_handler);
+
+	int error_handler_index = lua_gettop(L) - nargs - 1;
+	lua_insert(L, error_handler_index); // insert lua_error_handler before call parameters
+	int result = lua_pcall(L, nargs, nresults, error_handler_index);
+	lua_remove(L, error_handler_index); // remove lua_error_handler from stack
+	return result;
+}
+
 int premake_execute(lua_State* L, int argc, const char** argv, const char* script)
 {
-	int iErrFunc;
-
 	/* push the absolute path to the Premake executable */
 	lua_pushcfunction(L, path_getabsolute);
 	premake_locate_executable(L, argv[0]);
@@ -272,33 +320,19 @@ int premake_execute(lua_State* L, int argc, const char** argv, const char* scrip
 
 	/* Find and run the main Premake bootstrapping script */
 	if (run_premake_main(L, script) != OKAY) {
-		int color = term_doGetTextColor();
-		term_doSetTextColor(getErrorColor(L));
-		printf(ERROR_MESSAGE, lua_tostring(L, -1));
-		term_doSetTextColor(color);
+		printLastError(L);
 		return !OKAY;
 	}
-
-	/* in debug mode, show full traceback on all errors */
-#if defined(NDEBUG)
-	iErrFunc = 0;
-#else
-	lua_getglobal(L, "debug");
-	lua_getfield(L, -1, "traceback");
-	iErrFunc = -2;
-#endif
 
 	/* and call the main entry point */
 	lua_getglobal(L, "_premake_main");
-	if (lua_pcall(L, 0, 1, iErrFunc) != OKAY) {
-		int color = term_doGetTextColor();
-		term_doSetTextColor(getErrorColor(L));
-		printf(ERROR_MESSAGE, lua_tostring(L, -1));
-		term_doSetTextColor(color);
+	if (premake_pcall(L, 0, 1) != OKAY) {
+		printLastError(L);
 		return !OKAY;
 	}
 	else {
-		return (int)lua_tonumber(L, -1);
+		int exitCode = (int)lua_tonumber(L, -1);
+		return exitCode;
 	}
 }
 
@@ -599,8 +633,10 @@ static int run_premake_main(lua_State* L, const char* script)
 #endif
 
 	if (z == OKAY) {
-		z = luaL_dofile(L, lua_tostring(L, -1));
+		const char* filename = lua_tostring(L, -1);
+		z = luaL_dofile(L, filename);
 	}
+
 	return z;
 }
 
@@ -641,7 +677,7 @@ int premake_load_embedded_script(lua_State* L, const char* filename)
 
 	const buildin_mapping* chunk = premake_find_embedded_script(filename);
 	if (chunk == NULL) {
-		return !OKAY;
+		return LUA_ERRFILE;
 	}
 
 	/* Debug builds probably want to be loading scripts from the disk */
@@ -659,4 +695,21 @@ int premake_load_embedded_script(lua_State* L, const char* filename)
 
 	/* Load the chunk */
 	return luaL_loadbuffer(L, (const char*)chunk->bytecode, chunk->length, filename);
+}
+
+
+/**
+ * Give the lua runtime raw access to embedded files.
+ */
+int premake_getEmbeddedResource(lua_State* L)
+{
+	const char* filename = luaL_checkstring(L, 1);
+	const buildin_mapping* chunk = premake_find_embedded_script(filename);
+	if (chunk == NULL)
+	{
+		return 0;
+	}
+
+	lua_pushlstring(L, (const char*)chunk->bytecode, chunk->length);
+	return 1;
 }

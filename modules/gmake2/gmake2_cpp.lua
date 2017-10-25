@@ -522,7 +522,7 @@
 		_p('# #############################################')
 		_p('')
 		for cfg in project.eachconfig(prj) do
-			table.foreachi(cfg.project._.files, function(node)
+			table.foreachi(prj._.files, function(node)
 				local fcfg = fileconfig.getconfig(node, cfg)
 				if fcfg then
 					cpp.perFileFlags(cfg, fcfg)
@@ -533,6 +533,7 @@
 	end
 
 	local function makeVarName(prj, value, saltValue)
+		prj._gmake = prj._gmake or {}
 		prj._gmake.varlist = prj._gmake.varlist or {}
 		prj._gmake.varlistlength = prj._gmake.varlistlength or 0
 		local cache = prj._gmake.varlist
@@ -716,7 +717,11 @@
 		local cmd = iif(p.languages.isc(cfg.language), "$(CC) -x c-header $(ALL_CFLAGS)", "$(CXX) -x c++-header $(ALL_CXXFLAGS)")
 		_p('\t$(SILENT) %s -o "$@" -MF "$(@:%%.gch=%%.d)" -c "$<"', cmd)
 		_p('$(PCH_PLACEHOLDER): $(GCH) | $(OBJDIR)')
-		_p('\t$(SILENT) touch "$@"')
+		_p('\tifeq (posix,$(SHELLTYPE))')
+		_p('\t\t$(SILENT) touch "$@"')
+		_p('\telse')
+		_p('\t\t$(SILENT) echo $null >> "$@"')
+		_p('\tendif')
 		_p('else')
 		_p('$(OBJECTS): | $(OBJDIR)')
 		_p('endif')

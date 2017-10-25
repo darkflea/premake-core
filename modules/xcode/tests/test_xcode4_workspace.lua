@@ -18,7 +18,8 @@
 	local wks, prj
 
 	function suite.setup()
-		_ACTION = "xcode4"
+		_TARGET_OS = "macosx"
+		p.action.set('xcode4')
 		wks = test.createWorkspace()
 	end
 

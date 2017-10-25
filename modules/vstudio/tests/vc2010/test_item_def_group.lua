@@ -17,6 +17,7 @@
 	local wks, prj
 
 	function suite.setup()
+		p.action.set("vs2010")
 		wks, prj = test.createWorkspace()
 	end
 
@@ -78,4 +79,20 @@
 		kind "None"
 		prepare("Release")
 		test.isemptycapture()
+	end
+
+--
+-- Utility projects include buildlog
+--
+	function suite.utilityIncludesPath()
+		kind "Utility"
+		buildlog "MyCustomLogFile.log"
+		prepare()
+		test.capture [[
+<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+	<BuildLog>
+		<Path>MyCustomLogFile.log</Path>
+	</BuildLog>
+</ItemDefinitionGroup>
+		]]
 	end

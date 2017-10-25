@@ -59,14 +59,16 @@
 		local passed = 0
 		local failed = 0
 
-		for testName, testFunction in pairs(test.suite) do
-			test.testName = testName
-			test.testFunction = testFunction
+		if test.suite ~= nil then
+			for testName, testFunction in pairs(test.suite) do
+				test.testName = testName
+				test.testFunction = testFunction
 
-			if m.isValid(test) and not m.isSuppressed(test.suiteName .. "." .. test.testName) then
-				local np, nf = _.runTest(test)
-				passed = passed + np
-				failed = failed + nf
+				if m.isValid(test) and not m.isSuppressed(test.suiteName .. "." .. test.testName) then
+					local np, nf = _.runTest(test)
+					passed = passed + np
+					failed = failed + nf
+				end
 			end
 		end
 
@@ -81,6 +83,9 @@
 
 		_TESTS_DIR = test.suite._TESTS_DIR
 		_SCRIPT_DIR = test.suite._SCRIPT_DIR
+
+		m.suiteName = test.suiteName
+		m.testName = test.testName
 
 		local ok, err = _.setupTest(test)
 
@@ -153,7 +158,7 @@
 
 
 	function _.removeTestingHooks(hooks)
-		_ACTION = hooks.action
+		p.action.set(hooks.action)
 		_OPTIONS = hooks.options
 		_TARGET_OS = hooks.targetOs
 
@@ -229,6 +234,8 @@
 		m.value_openedfilename = fname
 		m.value_openedfilemode = mode
 		return {
+			read = function()
+			end,
 			close = function()
 				m.value_closedfile = true
 			end

@@ -6,7 +6,7 @@
 
 	local p = premake
 	local suite = test.declare("vstudio_cs2005_assembly_refs")
-	local cs2005 = p.vstudio.cs2005
+	local dn2005 = p.vstudio.dotnetbase
 
 
 --
@@ -23,7 +23,8 @@
 
 	local function prepare(platform)
 		prj = test.getproject(wks, 1)
-		cs2005.references(prj)
+
+		dn2005.references(prj)
 	end
 
 
@@ -254,6 +255,33 @@
 		</Reference>
 		<Reference Include="NUnit.System.Linq">
 			<HintPath>packages\NUnit.3.6.1\lib\net20\NUnit.System.Linq.dll</HintPath>
+			<Private>True</Private>
+		</Reference>
+	</ItemGroup>
+		]]
+	end
+
+--
+-- NuGet packages with unconventional folder structures should be handled
+-- properly.
+--
+
+	function suite.nuGetPackages_netFolder()
+		dotnetframework "4.5"
+		nuget { "MetroModernUI:1.4.0" }
+		prepare()
+		test.capture [[
+	<ItemGroup>
+		<Reference Include="MetroFramework.Design">
+			<HintPath>packages\MetroModernUI.1.4.0.0\lib\net\MetroFramework.Design.dll</HintPath>
+			<Private>True</Private>
+		</Reference>
+		<Reference Include="MetroFramework">
+			<HintPath>packages\MetroModernUI.1.4.0.0\lib\net\MetroFramework.dll</HintPath>
+			<Private>True</Private>
+		</Reference>
+		<Reference Include="MetroFramework.Fonts">
+			<HintPath>packages\MetroModernUI.1.4.0.0\lib\net\MetroFramework.Fonts.dll</HintPath>
 			<Private>True</Private>
 		</Reference>
 	</ItemGroup>

@@ -27,6 +27,7 @@
 			p.X86,
 			p.X86_64,
 			p.ARM,
+			p.ARM64,
 		},
 		aliases = {
 			i386  = p.X86,
@@ -407,7 +408,8 @@
 			"Default",
 			"On",
 			"Off",
-			"SEH"
+			"SEH",
+			"CThrow",
 		},
 	}
 
@@ -723,7 +725,8 @@
 		allowed = {
 			"C",
 			"C++",
-			"C#"
+			"C#",
+			"F#"
 		}
 	}
 
@@ -846,7 +849,7 @@
 
 	api.register {
 		name = "nuget",
-		scope = "project",
+		scope = "config",
 		kind = "list:string",
 		tokens = true,
 	}
@@ -1105,6 +1108,7 @@
 			"aix",
 			"bsd",
 			"haiku",
+			"ios",
 			"linux",
 			"macosx",
 			"solaris",
@@ -1124,6 +1128,12 @@
 		name = "tags",
 		scope = "config",
 		kind = "list:string",
+	}
+
+	api.register {
+		name = "tailcalls",
+		scope = "config",
+		kind = "boolean"
 	}
 
 	api.register {
@@ -1250,6 +1260,7 @@
 		allowed = {
 			"Off",
 			"Default",
+			"High",
 			"Extra",
 		}
 	}
@@ -1649,7 +1660,7 @@
 
 	-- Windows and friends.
 
-	filter { "system:Windows or language:C#", "kind:ConsoleApp or WindowedApp" }
+	filter { "system:Windows or language:C# or language:F#", "kind:ConsoleApp or WindowedApp" }
 		targetextension ".exe"
 
 	filter { "system:Xbox360", "kind:ConsoleApp or WindowedApp" }
@@ -1664,7 +1675,7 @@
 		targetprefix ""
 		targetextension ".lib"
 
-	filter { "language:C#", "kind:SharedLib" }
+	filter { "language:C# or language:F#", "kind:SharedLib" }
 		targetprefix ""
 		targetextension ".dll"
 		implibextension ".dll"
