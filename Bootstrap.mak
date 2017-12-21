@@ -74,7 +74,7 @@ linux: $(SRC)
 	$(SILENT) rm -rf ./build
 	$(SILENT) rm -rf ./obj
 	mkdir -p build/bootstrap
-	$(CC) -o build/bootstrap/premake_bootstrap -DPREMAKE_NO_BUILTIN_SCRIPTS -DLUA_USE_POSIX -DLUA_USE_DLOPEN -I"$(LUA_DIR)" -I"$(LUASHIM_DIR)" $? -lm -ldl -lrt
+	$(CC) -o build/bootstrap/premake_bootstrap -DPREMAKE_NO_BUILTIN_SCRIPTS -DLUA_USE_POSIX -DLUA_USE_DLOPEN -I"$(LUA_DIR)" -I"$(LUASHIM_DIR)" $? -lm -ldl -lrt -static-libstdc++
 	./build/bootstrap/premake_bootstrap embed
 	./build/bootstrap/premake_bootstrap --to=build/bootstrap gmake
 	$(MAKE) -C build/bootstrap -j`getconf _NPROCESSORS_ONLN`
