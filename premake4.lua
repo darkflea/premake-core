@@ -60,7 +60,7 @@
 		configuration "linux or bsd or hurd"
 			defines     { "LUA_USE_POSIX", "LUA_USE_DLOPEN" }
 			links       { "m" }
-			linkoptions { "-rdynamic" }
+			linkoptions { "-rdynamic", "-static-libstdc++" }
 
 		configuration "linux or hurd"
 			links       { "dl", "rt" }

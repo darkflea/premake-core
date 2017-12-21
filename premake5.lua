@@ -180,7 +180,7 @@
 		filter "system:linux or bsd or hurd"
 			defines     { "LUA_USE_POSIX", "LUA_USE_DLOPEN" }
 			links       { "m" }
-			linkoptions { "-rdynamic" }
+			linkoptions { "-rdynamic", "-static-libstdc++" }
 
 		filter "system:linux or hurd"
 			links       { "dl", "rt" }
