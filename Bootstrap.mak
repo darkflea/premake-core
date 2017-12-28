@@ -101,6 +101,10 @@ windows-base: $(SRC)
 windows: windows-base
 	devenv .\build\bootstrap\Premake5.sln /Upgrade
 	devenv .\build\bootstrap\Premake5.sln /Build Release
+	
+windowsd: windows-base
+	devenv .\build\bootstrap\Premake5.sln /Upgrade
+	devenv .\build\bootstrap\Premake5.sln /Build Debug
 
 windows-msbuild: windows-base
 	msbuild /p:Configuration=Release /p:Platform=Win32 .\build\bootstrap\Premake5.sln
