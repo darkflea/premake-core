@@ -10,8 +10,7 @@ before_build:
 
 build_script:
   - cmd: call "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat"
-  - cmd: nmake -f Bootstrap.mak MSDEV=vs2015 windows
-  - cmd: nmake -f Bootstrap.mak MSDEV=vs2015 windowsd
+  - cmd: nmake -f Bootstrap.mak MSDEV=vs2015 windows-ci
   - cmd: cd bin\release\
   - cmd: move ..\debug\premake5.exe .\premake5d.exe
   - cmd: 7z a premake-windows.zip premake5.exe 

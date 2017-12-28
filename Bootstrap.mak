@@ -102,8 +102,9 @@ windows: windows-base
 	devenv .\build\bootstrap\Premake5.sln /Upgrade
 	devenv .\build\bootstrap\Premake5.sln /Build Release
 	
-windowsd: windows-base
+windows-ci: windows-base
 	devenv .\build\bootstrap\Premake5.sln /Upgrade
+	devenv .\build\bootstrap\Premake5.sln /Build Release
 	devenv .\build\bootstrap\Premake5.sln /Build Debug
 
 windows-msbuild: windows-base
