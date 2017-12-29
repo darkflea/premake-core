@@ -7,9 +7,9 @@ script:
   - make -C build/bootstrap -j config=debug
   - bin/release/premake5 test
   - bin/debug/premake5 test
-
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then (cd bin/release; tar -zcvf premake-linux.tar.gz premake5; cd ../..) fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then (cd bin/release; tar -zcvf premake-macosx.tar.gz premake5; cd ../..) fi
+  - cpy bin/debug/premake5 bin/release/premake5d
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then (cd bin/release; tar -zcvf premake-linux.tar.gz premake5 premake5d; cd ../..) fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then (cd bin/release; tar -zcvf premake-macosx.tar.gz premake5 premake5d; cd ../..) fi
 deploy:
   provider: releases
   api_key: $GH
