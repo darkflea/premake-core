@@ -221,8 +221,8 @@
 			include "contrib/lyaml"
 		end
 
-	-- group "Binary Modules"
-	--	 include "binmodules/example"
+	group "Binary Modules"
+		include "binmodules/example"
 
 --
 -- A more thorough cleanup.
