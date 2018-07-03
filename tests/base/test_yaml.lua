@@ -40,15 +40,7 @@ ok: true
         local res = yaml.decode(yaml.encode(l), true)
         test.isnil(res.y)
     end
-
-    function suite.disable_anchors()
-        local l = { x = 1 }
-        l.y = l
-        -- true == safe decodeing
-        local res = yaml.decode(yaml.encode(l), true)
-        test.isnil(res.y)
-    end
-
+    
     function suite.configure()
         yaml.configure {
             load_set_metatables = false,
