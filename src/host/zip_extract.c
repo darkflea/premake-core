@@ -169,7 +169,7 @@ static int extract(const char* src, const char* destination)
 			if (write_link(appended_full_name, buffer, (size_t)bytes_read) != 0)
 			{
 				printf("  Failed to create symbolic link [%s->%s]\n", appended_full_name, buffer);
-				return -1;
+				continue;
 			}
 		} else
 		{
