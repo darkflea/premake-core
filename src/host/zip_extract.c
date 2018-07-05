@@ -183,7 +183,7 @@ static int extract(const char* src, const char* destination)
 				if (fp == NULL)
 				{
 					printf("Error creating file:\n  %s\n", appended_full_name);
-					return -1;
+					continue;
 				}
 				for(;;)
 				{
