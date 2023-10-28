@@ -89,16 +89,31 @@
 		]]
 	end
 
+	function suite.appxManifestCompile_onAppxManifestFile()
+		files { "hello.appxmanifest" }
+		prepare()
+		test.capture [[
+<ItemGroup>
+	<AppxManifest Include="hello.appxmanifest">
+		<FileType>Document</FileType>
+		<SubType>Designer</SubType>
+	</AppxManifest>
+</ItemGroup>
+		]]
+	end
+
 
 --
 -- Check handling of buildaction.
 --
 	function suite.customBuildTool_onBuildAction()
-		files { "test.x", "test2.cpp", "test3.cpp" }
+		files { "test.x", "test2.cpp", "test3.cpp", "test4.dll" }
 		filter "files:**.x"
 			buildaction "FxCompile"
 		filter "files:test2.cpp"
 			buildaction "None"
+		filter { "files:test4.dll" }
+			buildaction "Copy"
 		prepare()
 		test.capture [[
 <ItemGroup>
@@ -109,6 +124,12 @@
 </ItemGroup>
 <ItemGroup>
 	<None Include="test2.cpp" />
+</ItemGroup>
+<ItemGroup>
+	<CopyFileToFolders Include="test4.dll">
+		<DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">bin\Debug</DestinationFolders>
+		<DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">bin\Release</DestinationFolders>
+	</CopyFileToFolders>
 </ItemGroup>
 		]]
 	end
@@ -278,6 +299,19 @@
 		prepare()
 		test.capture [[
 <ItemGroup>
+	<ResourceCompile Include="hello.rc">
+		<ExcludedFromBuild>true</ExcludedFromBuild>
+	</ResourceCompile>
+</ItemGroup>
+		]]
+	end
+
+	function suite.includedFromBuild_onResourceFile_nonWindows()
+		files { "hello.rc" }
+		system "Linux"
+		prepare()
+		test.capture [[
+<ItemGroup>
 	<ResourceCompile Include="hello.rc" />
 </ItemGroup>
 		]]
@@ -420,6 +454,140 @@
 </ItemGroup>
 		]]
 	end
+
+
+	function suite.uniqueObjectNames_onBaseNameCollision1()
+		files { "a/hello.cpp", "b/hello.cpp", "c/hello1.cpp" }
+		prepare()
+		test.capture [[
+<ItemGroup>
+	<ClCompile Include="a\hello.cpp" />
+	<ClCompile Include="b\hello.cpp">
+		<ObjectFileName>$(IntDir)\hello1.obj</ObjectFileName>
+	</ClCompile>
+	<ClCompile Include="c\hello1.cpp">
+		<ObjectFileName>$(IntDir)\hello11.obj</ObjectFileName>
+	</ClCompile>
+</ItemGroup>
+		]]
+	end
+
+
+	function suite.uniqueObjectNames_onBaseNameCollision2()
+		files { "a/hello1.cpp", "b/hello.cpp", "c/hello.cpp" }
+		prepare()
+		test.capture [[
+<ItemGroup>
+	<ClCompile Include="a\hello1.cpp" />
+	<ClCompile Include="b\hello.cpp" />
+	<ClCompile Include="c\hello.cpp">
+		<ObjectFileName>$(IntDir)\hello2.obj</ObjectFileName>
+	</ClCompile>
+</ItemGroup>
+		]]
+	end
+
+
+	function suite.uniqueObjectNames_onBaseNameCollision_Release()
+		files { "a/hello.cpp", "b/hello.cpp", "c/hello1.cpp", "d/hello11.cpp" }
+		filter "configurations:Debug"
+			excludes {"b/hello.cpp"}
+		filter "configurations:Release"
+			excludes {"d/hello11.cpp"}
+
+		prepare()
+		test.capture [[
+<ItemGroup>
+	<ClCompile Include="a\hello.cpp" />
+	<ClCompile Include="b\hello.cpp">
+		<ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+		<ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)\hello1.obj</ObjectFileName>
+	</ClCompile>
+	<ClCompile Include="c\hello1.cpp">
+		<ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)\hello11.obj</ObjectFileName>
+	</ClCompile>
+	<ClCompile Include="d\hello11.cpp">
+		<ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+	</ClCompile>
+</ItemGroup>
+		]]
+	end
+
+--
+-- Test that changes in case are treated as if multiple files of the same name are being built
+--
+
+	function suite.uniqueObjectNames_onSourceNameCollision_ignoreCase()
+		files { "hello.cpp", "greetings/Hello.cpp" }
+		prepare()
+		test.capture [[
+<ItemGroup>
+	<ClCompile Include="greetings\Hello.cpp" />
+	<ClCompile Include="hello.cpp">
+		<ObjectFileName>$(IntDir)\hello1.obj</ObjectFileName>
+	</ClCompile>
+</ItemGroup>
+		]]
+	end
+
+
+	function suite.uniqueObjectNames_onBaseNameCollision_ignoreCase1()
+		files { "a/hello.cpp", "b/Hello.cpp", "c/hello1.cpp" }
+		prepare()
+		test.capture [[
+<ItemGroup>
+	<ClCompile Include="a\hello.cpp" />
+	<ClCompile Include="b\Hello.cpp">
+		<ObjectFileName>$(IntDir)\Hello1.obj</ObjectFileName>
+	</ClCompile>
+	<ClCompile Include="c\hello1.cpp">
+		<ObjectFileName>$(IntDir)\hello11.obj</ObjectFileName>
+	</ClCompile>
+</ItemGroup>
+		]]
+	end
+
+
+	function suite.uniqueObjectNames_onBaseNameCollision_ignoreCase2()
+		files { "a/hello1.cpp", "b/Hello.cpp", "c/hello.cpp" }
+		prepare()
+		test.capture [[
+<ItemGroup>
+	<ClCompile Include="a\hello1.cpp" />
+	<ClCompile Include="b\Hello.cpp" />
+	<ClCompile Include="c\hello.cpp">
+		<ObjectFileName>$(IntDir)\hello2.obj</ObjectFileName>
+	</ClCompile>
+</ItemGroup>
+		]]
+	end
+
+
+	function suite.uniqueObjectNames_onBaseNameCollision_Release_ignoreCase()
+		files { "a/Hello.cpp", "b/hello.cpp", "c/hello1.cpp", "d/hello11.cpp" }
+		filter "configurations:Debug"
+			excludes {"b/hello.cpp"}
+		filter "configurations:Release"
+			excludes {"d/hello11.cpp"}
+
+		prepare()
+		test.capture [[
+<ItemGroup>
+	<ClCompile Include="a\Hello.cpp" />
+	<ClCompile Include="b\hello.cpp">
+		<ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+		<ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)\hello1.obj</ObjectFileName>
+	</ClCompile>
+	<ClCompile Include="c\hello1.cpp">
+		<ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)\hello11.obj</ObjectFileName>
+	</ClCompile>
+	<ClCompile Include="d\hello11.cpp">
+		<ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+	</ClCompile>
+</ItemGroup>
+		]]
+	end
+
 
 
 --
@@ -752,6 +920,40 @@
 	<ClCompile Include="hello.cpp">
 		<WarningLevel>Level4</WarningLevel>
 	</ClCompile>
+	<ClCompile Include="hello2.cpp" />
+</ItemGroup>
+		]]
+	end
+
+--
+-- test consumewinrtextension set for a single file
+--
+
+	function suite.consumewinrtextensionPerFile()
+		p.action.set("vs2019")
+		files { "hello.cpp", "hello2.cpp" }
+		filter { "files:hello.cpp" }
+			consumewinrtextension 'On'
+		prepare()
+		test.capture [[
+<ItemGroup>
+	<ClCompile Include="hello.cpp">
+		<CompileAsWinRT>true</CompileAsWinRT>
+	</ClCompile>
+	<ClCompile Include="hello2.cpp" />
+</ItemGroup>
+		]]
+	end
+
+	function suite.consumewinrtextensionPerFile_BeforeVS2019()
+		p.action.set("vs2017")
+		files { "hello.cpp", "hello2.cpp" }
+		filter { "files:hello.cpp" }
+			consumewinrtextension 'On'
+		prepare()
+		test.capture [[
+<ItemGroup>
+	<ClCompile Include="hello.cpp" />
 	<ClCompile Include="hello2.cpp" />
 </ItemGroup>
 		]]

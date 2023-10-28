@@ -218,14 +218,15 @@
 		flags = {
 			OmitDefaultLibrary		= "-mscrtlib=",
 			CodeCoverage			= "-cov",
+			Color					= "-color",
 			Documentation			= "-D",
 			FatalWarnings			= "-w",
 			GenerateHeader			= "-H",
 			GenerateJSON			= "-X",
 			GenerateMap				= "-map",
+			LowMem					= "-lowmem",
 			Profile					= "-profile",
 			Quiet					= "-quiet",
---			Release					= "-release",
 			RetainPaths				= "-op",
 			SymbolsLikeC			= "-gc",
 			UnitTest				= "-unittest",
@@ -233,7 +234,7 @@
 			ProfileGC				= "-profile=gc",
 			StackFrame				= "-gs",
 			StackStomp				= "-gx",
-			AllTemplateInst			= "-allinst",
+			AllInstantiate			= "-allinst",
 			BetterC					= "-betterC",
 			Main					= "-main",
 			PerformSyntaxCheckOnly	= "-o-",
@@ -246,6 +247,33 @@
 			Off = "-boundscheck=off",
 			On = "-boundscheck=on",
 			SafeOnly = "-boundscheck=safeonly",
+		},
+		checkaction = {
+			D = "-checkaction=D",
+			C = "-checkaction=C",
+			Halt = "-checkaction=halt",
+			Context = "-checkaction=context",
+		},
+		cppdialect = {
+			["C++latest"] = "-extern-std=c++20", -- TODO: keep this up to date >_<
+			["C++98"] = "-extern-std=c++98",
+			["C++0x"] = "-extern-std=c++11",
+			["C++11"] = "-extern-std=c++11",
+			["C++1y"] = "-extern-std=c++14",
+			["C++14"] = "-extern-std=c++14",
+			["C++1z"] = "-extern-std=c++17",
+			["C++17"] = "-extern-std=c++17",
+			["C++2a"] = "-extern-std=c++20",
+			["C++20"] = "-extern-std=c++20",
+			["gnu++98"] = "-extern-std=c++98",
+			["gnu++0x"] = "-extern-std=c++11",
+			["gnu++11"] = "-extern-std=c++11",
+			["gnu++1y"] = "-extern-std=c++14",
+			["gnu++14"] = "-extern-std=c++14",
+			["gnu++1z"] = "-extern-std=c++17",
+			["gnu++17"] = "-extern-std=c++17",
+			["gnu++2a"] = "-extern-std=c++20",
+			["gnu++20"] = "-extern-std=c++20",
 		},
 		deprecatedfeatures = {
 			Allow = "-d",
@@ -264,16 +292,21 @@
 		pic = {
 			On = "-fPIC",
 		},
-		warnings = {
-			Default = "-wi",
-			High = "-wi",
-			Extra = "-wi",
-		},
 		symbols = {
 			On = "-g",
 			FastLink = "-g",
 			Full = "-g",
-		}
+		},
+		vectorextensions = {
+			AVX = "-mcpu=avx",
+			AVX2 = "-mcpu=avx2",
+		},
+		warnings = {
+			Default = "-wi",
+			High = "-wi",
+			Extra = "-wi",
+			Everything = "-wi",
+		},
 	}
 
 	function dmd.getdflags(cfg)
@@ -324,6 +357,22 @@
 			end
 			if cfg.headerdir then
 				table.insert(flags, "-Hd" .. p.quoted(cfg.headerdir))
+			end
+		end
+
+		if #cfg.preview > 0 then
+			for _, opt in ipairs(cfg.preview) do
+				table.insert(flags, "-preview=" .. opt)
+			end
+		end
+		if #cfg.revert > 0 then
+			for _, opt in ipairs(cfg.revert) do
+				table.insert(flags, "-revert=" .. opt)
+			end
+		end
+		if #cfg.transition > 0 then
+			for _, opt in ipairs(cfg.transition) do
+				table.insert(flags, "-transition=" .. opt)
 			end
 		end
 

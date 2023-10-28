@@ -13,7 +13,20 @@
 	local msc = p.tools.msc
 	local project = p.project
 	local config = p.config
+	local string = require("string")
 
+	-- string comparison `toolset >= "msc-v142"` won't work with "msc-v80"
+	local function isVersionGreaterOrEqualTo(lhs, rhs)
+		if lhs == nil or rhs == nil then
+			return false
+		end
+		lhs = _G.tonumber(string.match(lhs, "^msc%-v([0-9]+)$"))
+		rhs = _G.tonumber(string.match(rhs, "^msc%-v([0-9]+)$"))
+		if lhs == nil or rhs == nil then
+			return false
+		end
+		return lhs >= rhs
+	end
 
 --
 -- Returns list of C preprocessor flags for a configuration.
@@ -28,6 +41,15 @@
 -- Returns list of C compiler flags for a configuration.
 --
 
+	local function getRuntimeFlag(cfg, isstatic)
+		local rt = cfg.runtime
+		local flag = iif(isstatic, "/MT", "/MD")
+		if (rt == "Debug") or (rt == nil and config.isDebugBuild(cfg))  then
+			flag = flag .. "d"
+		end
+		return flag
+	end
+
 	msc.shared = {
 		clr = {
 			On = "/clr",
@@ -35,8 +57,13 @@
 			Pure = "/clr:pure",
 			Safe = "/clr:safe",
 		},
+		compileas = {
+			["C"] = "/TC",
+			["C++"] = "/TP",
+		},
 		flags = {
 			FatalCompileWarnings = "/WX",
+			LinkTimeOptimization = "/GL",
 			MultiProcessorCompile = "/MP",
 			NoMinimalRebuild = "/Gm-",
 			OmitDefaultLibrary = "/Zl"
@@ -78,19 +105,31 @@
 			SSE3 = "/arch:SSE2",
 			SSSE3 = "/arch:SSE2",
 			["SSE4.1"] = "/arch:SSE2",
+			["SSE4.2"] = "/arch:SSE2",
 		},
 		warnings = {
-			Extra = "/W4",
-			High = "/W4",
 			Off = "/W0",
+			High = "/W4",
+			Extra = "/W4",
+			Everything = "/Wall",
+		},
+		externalwarnings = {
+			Off = "/external:W0",
+			Default = "/external:W3",
+			High = "/external:W4",
+			Extra = "/external:W4",
+			Everything = "/external:W4",
+		},
+		externalanglebrackets = {
+			On = "/external:anglebrackets",
 		},
 		staticruntime = {
 			-- this option must always be emit (does it??)
-			_ = function(cfg) return iif(config.isDebugBuild(cfg), "/MDd", "/MD") end,
+			_ = function(cfg) return getRuntimeFlag(cfg, false) end,
 			-- runtime defaults to dynamic in VS
-			Default = function(cfg) return iif(config.isDebugBuild(cfg), "/MDd", "/MD") end,
-			On = function(cfg) return iif(config.isDebugBuild(cfg), "/MTd", "/MT") end,
-			Off = function(cfg) return iif(config.isDebugBuild(cfg), "/MDd", "/MD") end,
+			Default = function(cfg) return getRuntimeFlag(cfg, false) end,
+			On = function(cfg) return getRuntimeFlag(cfg, true) end,
+			Off = function(cfg) return getRuntimeFlag(cfg, false) end,
 		},
 		stringpooling = {
 			On = "/GF",
@@ -104,15 +143,44 @@
 		},
 		omitframepointer = {
 			On = "/Oy"
+		},
+		justmycode = {
+			On = "/JMC",
+			Off = "/JMC-"
+		},
+		openmp = {
+			On = "/openmp",
+			Off = "/openmp-"
+		},
+		usestandardpreprocessor = {
+			On = "/Zc:preprocessor",
+			Off = "/Zc:preprocessor-"
 		}
 
 	}
 
+	function msc.getsharedflags(cfg)
+		local shared = config.mapFlags(cfg, msc.shared)
+
+		-- D9007: '/external:I' requires '/external:W'
+		if (#cfg.externalincludedirs > 0 or #cfg.includedirsafter > 0)
+			and cfg.externalwarnings == nil
+			and isVersionGreaterOrEqualTo(cfg.toolset, "msc-v142")
+		then
+			table.insert(shared, msc.shared.externalwarnings.Default)
+		end
+		return shared
+	end
+
 	msc.cflags = {
+		cdialect = {
+			["C11"] = "/std:c11",
+			["C17"] = "/std:c17"
+		}
 	}
 
 	function msc.getcflags(cfg)
-		local shared = config.mapFlags(cfg, msc.shared)
+		local shared = msc.getsharedflags(cfg)
 		local cflags = config.mapFlags(cfg, msc.cflags)
 		local flags = table.join(shared, cflags, msc.getwarnings(cfg))
 		return flags
@@ -124,6 +192,12 @@
 --
 
 	msc.cxxflags = {
+		cppdialect = {
+			["C++14"] = "/std:c++14",
+			["C++17"] = "/std:c++17",
+			["C++20"] = "/std:c++20",
+			["C++latest"] = "/std:c++latest"
+		},
 		exceptionhandling = {
 			Default = "/EHsc",
 			On = "/EHsc",
@@ -131,11 +205,15 @@
 		},
 		rtti = {
 			Off = "/GR-"
+		},
+		sanitize = {
+			Address = "/fsanitize=address",
+			Fuzzer = "/fsanitize=fuzzer",
 		}
 	}
 
 	function msc.getcxxflags(cfg)
-		local shared = config.mapFlags(cfg, msc.shared)
+		local shared = msc.getsharedflags(cfg)
 		local cxxflags = config.mapFlags(cfg, msc.cxxflags)
 		local flags = table.join(shared, cxxflags, msc.getwarnings(cfg))
 		return flags
@@ -217,13 +295,31 @@
 -- Decorate include file search paths for the MSVC command line.
 --
 
-	function msc.getincludedirs(cfg, dirs, sysdirs)
+	function msc.getincludedirs(cfg, dirs, extdirs, frameworkdirs, includedirsafter)
 		local result = {}
-		dirs = table.join(dirs, sysdirs)
 		for _, dir in ipairs(dirs) do
 			dir = project.getrelative(cfg.project, dir)
 			table.insert(result, '-I' ..  p.quoted(dir))
 		end
+
+		for _, dir in ipairs(extdirs or {}) do
+			dir = project.getrelative(cfg.project, dir)
+			if isVersionGreaterOrEqualTo(cfg.toolset, "msc-v142") then
+				table.insert(result, '/external:I' ..  p.quoted(dir))
+			else
+				table.insert(result, '-I' ..  p.quoted(dir))
+			end
+		end
+
+		for _, dir in ipairs(includedirsafter or {}) do
+			dir = project.getrelative(cfg.project, dir)
+			if isVersionGreaterOrEqualTo(cfg.toolset, "msc-v142") then
+				table.insert(result, '/external:I' ..  p.quoted(dir))
+			else
+				table.insert(result, '-I' ..  p.quoted(dir))
+			end
+		end
+
 		return result
 	end
 
@@ -235,13 +331,14 @@
 	msc.linkerFlags = {
 		flags = {
 			FatalLinkWarnings = "/WX",
-			LinkTimeOptimization = "/GL",
+			LinkTimeOptimization = "/LTCG",
 			NoIncrementalLink = "/INCREMENTAL:NO",
 			NoManifest = "/MANIFEST:NO",
 			OmitDefaultLibrary = "/NODEFAULTLIB",
 		},
 		kind = {
 			SharedLib = "/DLL",
+			WindowedApp = "/SUBSYSTEM:WINDOWS"
 		},
 		symbols = {
 			On = "/DEBUG"
@@ -257,6 +354,17 @@
 	function msc.getldflags(cfg)
 		local map = iif(cfg.kind ~= p.STATICLIB, msc.linkerFlags, msc.librarianFlags)
 		local flags = config.mapFlags(cfg, map)
+
+		if cfg.entrypoint then
+			-- /ENTRY requires that /SUBSYSTEM is set.
+			if cfg.kind == "ConsoleApp" then
+				table.insert(flags, "/SUBSYSTEM:CONSOLE")
+			elseif cfg.kind ~= "WindowedApp" then -- already set by above map
+				table.insert(flags, "/SUBSYSTEM:NATIVE") -- fallback
+			end
+			table.insert(flags, '/ENTRY:' .. cfg.entrypoint)
+		end
+
 		table.insert(flags, 1, "/NOLOGO")
 
 		-- Ignore default libraries
@@ -363,10 +471,14 @@
 	function msc.getwarnings(cfg)
 		local result = {}
 
-		-- NOTE: VStudio can't enable specific warnings (workaround?)
+		for _, enable in ipairs(cfg.enablewarnings) do
+			table.insert(result, '/w1"' .. enable .. '"')
+		end
+
 		for _, disable in ipairs(cfg.disablewarnings) do
 			table.insert(result, '/wd"' .. disable .. '"')
 		end
+
 		for _, fatal in ipairs(cfg.fatalwarnings) do
 			table.insert(result, '/we"' .. fatal .. '"')
 		end

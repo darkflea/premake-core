@@ -41,7 +41,7 @@
 				end
 			end
 
-			-- fetch the pathVars from the enviroment.
+			-- fetch the pathVars from the environment.
 			local envMap = e.pathVars or {}
 
 			-- enable access to the global environment
@@ -187,6 +187,9 @@
 			else
 				local res = expand_cache[value]
 				if res == nil then
+					if type(value) == "string" and path.hasdeferredjoin(value) then
+						value = path.resolvedeferredjoin(value)
+					end
 					res = expandvalue(value, e, f)
 					expand_cache[value] = res
 				end

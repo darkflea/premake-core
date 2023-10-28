@@ -48,14 +48,22 @@
 		test.isequal("test-prefix-windres", gcc.gettoolname(cfg, "rc"))
 	end
 
+	function suite.tools_forVersion()
+		toolset "gcc-16"
+		prepare()
+		test.isequal("gcc-16", gcc.gettoolname(cfg, "cc"))
+		test.isequal("g++-16", gcc.gettoolname(cfg, "cxx"))
+		test.isequal("ar-16", gcc.gettoolname(cfg, "ar"))
+		test.isequal("windres-16", gcc.gettoolname(cfg, "rc"))
+	end
 
 --
 -- By default, the -MMD -MP are used to generate dependencies.
 --
 
-	function suite.cppflags_defaultWithMMD()
+	function suite.cppflags_defaultWithMD()
 		prepare()
-		test.contains({"-MMD", "-MP"}, gcc.getcppflags(cfg))
+		test.contains({"-MD", "-MP"}, gcc.getcppflags(cfg))
 	end
 
 
@@ -74,16 +82,34 @@
 -- Check the translation of CFLAGS.
 --
 
+	function suite.cflags_onNoWarnings()
+		warnings "Off"
+		prepare()
+		test.contains({ "-w" }, gcc.getcflags(cfg))
+	end
+
+	function suite.cflags_onDefaultWarnings()
+		warnings "Default"
+		prepare()
+		test.excludes({ "-w", "-Wall", "-Wextra", "-Weverything" }, gcc.getcflags(cfg))
+	end
+
+	function suite.cflags_onHighWarnings()
+		warnings "High"
+		prepare()
+		test.contains({ "-Wall" }, gcc.getcflags(cfg))
+	end
+
 	function suite.cflags_onExtraWarnings()
-		warnings "extra"
+		warnings "Extra"
 		prepare()
 		test.contains({ "-Wall", "-Wextra" }, gcc.getcflags(cfg))
 	end
 
-	function suite.cflags_onHighWarnings()
-		warnings "high"
+	function suite.cflags_onEverythingWarnings()
+		warnings "Everything"
 		prepare()
-		test.contains({ "-Wall" }, gcc.getcflags(cfg))
+		test.contains({ "-Weverything" }, gcc.getcflags(cfg))
 	end
 
 	function suite.cflags_onFatalWarnings()
@@ -100,6 +126,36 @@
 		test.contains({ "-Wenable", "-Wno-disable", "-Werror=fatal" }, gcc.getcflags(cfg))
 	end
 
+	function suite.cflags_onNoExternalWarnings()
+		externalwarnings "Off"
+		prepare()
+		test.excludes({ "-Wsystem-headers" }, gcc.getcflags(cfg))
+	end
+
+	function suite.cflags_onDefaultExternalWarnings()
+		externalwarnings "Default"
+		prepare()
+		test.contains({ "-Wsystem-headers" }, gcc.getcflags(cfg))
+	end
+
+	function suite.cflags_onHighExternalWarnings()
+		externalwarnings "High"
+		prepare()
+		test.contains({ "-Wsystem-headers" }, gcc.getcflags(cfg))
+	end
+
+	function suite.cflags_onExtraExternalWarnings()
+		externalwarnings "Extra"
+		prepare()
+		test.contains({ "-Wsystem-headers" }, gcc.getcflags(cfg))
+	end
+
+	function suite.cflags_onEverythingExternalWarnings()
+		externalwarnings "Everything"
+		prepare()
+		test.contains({ "-Wsystem-headers" }, gcc.getcflags(cfg))
+	end
+
 	function suite.cflags_onFloastFast()
 		floatingpoint "Fast"
 		prepare()
@@ -112,12 +168,6 @@
 		test.contains({ "-ffloat-store" }, gcc.getcflags(cfg))
 	end
 
-	function suite.cflags_onNoWarnings()
-		warnings "Off"
-		prepare()
-		test.contains({ "-w" }, gcc.getcflags(cfg))
-	end
-
 	function suite.cflags_onSSE()
 		vectorextensions "SSE"
 		prepare()
@@ -128,6 +178,12 @@
 		vectorextensions "SSE2"
 		prepare()
 		test.contains({ "-msse2" }, gcc.getcflags(cfg))
+	end
+
+	function suite.cflags_onSSE4_2()
+		vectorextensions "SSE4.2"
+		prepare()
+		test.contains({ "-msse4.2" }, gcc.getcflags(cfg))
 	end
 
 	function suite.cflags_onAVX()
@@ -308,16 +364,23 @@
 -- Check the translation of CXXFLAGS.
 --
 
-	function suite.cflags_onNoExceptions()
+	function suite.cxxflags_onNoExceptions()
 		exceptionhandling "Off"
 		prepare()
 		test.contains({ "-fno-exceptions" }, gcc.getcxxflags(cfg))
 	end
 
-	function suite.cflags_onNoBufferSecurityCheck()
+	function suite.cxxflags_onNoBufferSecurityCheck()
 		flags { "NoBufferSecurityCheck" }
 		prepare()
 		test.contains({ "-fno-stack-protector" }, gcc.getcxxflags(cfg))
+	end
+
+	function suite.cxxflags_onSanitizeAddress()
+		sanitize { "Address" }
+		prepare()
+		test.contains({ "-fsanitize=address" }, gcc.getcxxflags(cfg))
+		test.contains({ "-fsanitize=address" }, gcc.getldflags(cfg))
 	end
 
 --
@@ -353,6 +416,14 @@
 		test.contains({ "-Wl,-x", "-bundle" }, gcc.getldflags(cfg))
 	end
 
+	function suite.ldflags_onMacOSXXCTest()
+		system "MacOSX"
+		kind "SharedLib"
+		sharedlibtype "XCTest"
+		prepare()
+		test.contains({ "-Wl,-x", "-bundle" }, gcc.getldflags(cfg))
+	end
+
 	function suite.ldflags_onMacOSXFramework()
 		system "MacOSX"
 		kind "SharedLib"
@@ -372,6 +443,30 @@
 		kind "SharedLib"
 		prepare()
 		test.contains({ "-dynamiclib" }, gcc.getldflags(cfg))
+	end
+
+--
+-- Check Mac OS X deployment target flags
+--
+
+	function suite.cflags_macosx_systemversion()
+		system "MacOSX"
+		systemversion "10.9"
+		prepare()
+		test.contains({ "-mmacosx-version-min=10.9" }, gcc.getcflags(cfg))
+	end
+
+	function suite.cxxflags_macosx_systemversion()
+		system "MacOSX"
+		systemversion "10.9:10.15"
+		prepare()
+		test.contains({ "-mmacosx-version-min=10.9" }, gcc.getcxxflags(cfg))
+	end
+
+	function suite.cxxflags_macosx_systemversion_unspecified()
+		system "MacOSX"
+		prepare()
+		test.excludes({ "-mmacosx-version-min=10.9" }, gcc.getcxxflags(cfg))
 	end
 
 
@@ -497,6 +592,24 @@
 
 
 --
+-- Test that sibling and external links are grouped when required
+--
+
+	function suite.linkgroups_onSiblingAndExternalLibrary()
+		links { "MyProject2", "ExternalProj" }
+		linkgroups "On"
+
+		test.createproject(wks)
+		system "Linux"
+		kind "StaticLib"
+		targetdir "lib"
+
+		prepare()
+		test.isequal({ "-Wl,--start-group", "lib/libMyProject2.a", "-lExternalProj", "-Wl,--end-group" }, gcc.getlinks(cfg))
+	end
+
+
+--
 -- When linking object files, leave off the "-l".
 --
 
@@ -538,8 +651,9 @@
 
 	function suite.includeDirsAreRelative()
 		includedirs { "../include", "src/include" }
+		externalincludedirs { "test/include" }
 		prepare()
-		test.isequal({ '-I../include', '-Isrc/include' }, gcc.getincludedirs(cfg, cfg.includedirs))
+		test.isequal({ '-I../include', '-Isrc/include', '-isystem test/include' }, gcc.getincludedirs(cfg, cfg.includedirs, cfg.externalincludedirs, cfg.frameworkdirs, cfg.includedirsafter))
 	end
 
 
@@ -561,16 +675,27 @@
 
 	function suite.includeDirs_onSpaces()
 		includedirs { "include files" }
+		externalincludedirs { "test include" }
 		prepare()
-		test.isequal({ '-I"include files"' }, gcc.getincludedirs(cfg, cfg.includedirs))
+		test.isequal({ '-I"include files"', '-isystem "test include"' }, gcc.getincludedirs(cfg, cfg.includedirs, cfg.externalincludedirs, cfg.frameworkdirs, cfg.includedirsafter))
 	end
 
 	function suite.includeDirs_onEnvVars()
 		includedirs { "$(IntDir)/includes" }
+		externalincludedirs { "$(BinDir)/include" }
 		prepare()
-		test.isequal({ '-I"$(IntDir)/includes"' }, gcc.getincludedirs(cfg, cfg.includedirs))
+		test.isequal({ '-I"$(IntDir)/includes"', '-isystem "$(BinDir)/include"' }, gcc.getincludedirs(cfg, cfg.includedirs, cfg.externalincludedirs, cfg.frameworkdirs, cfg.includedirsafter))
 	end
 
+--
+-- Include Directories After correctly take idirafter flag
+--
+
+	function suite.includeDirs_includeDirAfter()
+		includedirsafter { "after/path" }
+		prepare()
+		test.isequal({ '-idirafter after/path'}, gcc.getincludedirs(cfg, cfg.includedirs, cfg.externalincludedirs, cfg.frameworkdirs, cfg.includedirsafter))
+	end
 
 
 --
@@ -601,21 +726,78 @@
 		test.contains({ "-fstrict-aliasing", "-Wstrict-aliasing=3" }, gcc.getcflags(cfg))
 	end
 
+--
+-- Check handling of openmp.
+--
+
+	function suite.cflags_onOpenmpOn()
+		openmp "On"
+		prepare()
+		test.contains("-fopenmp", gcc.getcflags(cfg))
+	end
+
+	function suite.cflags_onOpenmpOff()
+		openmp "Off"
+		prepare()
+		test.excludes("-fopenmp", gcc.getcflags(cfg))
+	end
 
 --
 -- Check handling of system search paths.
 --
 
-	function suite.includeDirs_onSysIncludeDirs()
-		sysincludedirs { "/usr/local/include" }
-		prepare()
-		test.contains("-isystem /usr/local/include", gcc.getincludedirs(cfg, cfg.includedirs, cfg.sysincludedirs))
-	end
-
 	function suite.libDirs_onSysLibDirs()
 		syslibdirs { "/usr/local/lib" }
 		prepare()
 		test.contains("-L/usr/local/lib", gcc.getLibraryDirectories(cfg))
+	end
+
+--
+-- Check handling of Apple frameworks search paths
+--
+	function suite.includeDirs_notDarwin_onFrameworkDirs()
+		system "Linux"
+		frameworkdirs { "/Library/Frameworks" }
+		prepare()
+		test.excludes("-F/Library/Frameworks", gcc.getincludedirs(cfg, {}, {}, cfg.frameworkdirs))
+	end
+
+	function suite.libDirs_notDarwin_onFrameworkDirs()
+		system "Windows"
+		frameworkdirs { "/Library/Frameworks" }
+		prepare()
+		test.excludes("-F/Library/Frameworks", gcc.getLibraryDirectories(cfg))
+	end
+
+	function suite.includeDirs_macosx_onFrameworkDirs()
+		system "MacOSX"
+		location "subdir"
+		frameworkdirs {
+			"/Library/Frameworks",
+			"subdir/Relative/Frameworks"
+		}
+		prepare()
+		test.contains("-F/Library/Frameworks", gcc.getincludedirs(cfg, {}, {}, cfg.frameworkdirs))
+		test.contains("-FRelative/Frameworks", gcc.getincludedirs(cfg, {}, {}, cfg.frameworkdirs))
+	end
+
+	function suite.libDirs_macosx_onFrameworkDirs()
+		system "MacOSX"
+		location "subdir"
+		frameworkdirs {
+			"/Library/Frameworks",
+			"subdir/Relative/Frameworks"
+		}
+		prepare()
+		test.contains("-F/Library/Frameworks", gcc.getLibraryDirectories(cfg))
+		test.contains("-FRelative/Frameworks", gcc.getLibraryDirectories(cfg))
+	end
+
+	function suite.includeDirs_ios_onFrameworkDirs()
+		system "iOS"
+		frameworkdirs { "/Library/Frameworks" }
+		prepare()
+		test.contains("-F/Library/Frameworks", gcc.getincludedirs(cfg, {}, {}, cfg.frameworkdirs))
 	end
 
 
@@ -697,6 +879,13 @@
 		test.contains({ }, gcc.getcxxflags(cfg))
 	end
 
+	function suite.cflags_onC17()
+		cdialect "C17"
+		prepare()
+		test.contains({ "-std=c17" }, gcc.getcflags(cfg))
+		test.contains({ }, gcc.getcxxflags(cfg))
+	end
+
 	function suite.cflags_ongnu89()
 		cdialect "gnu89"
 		prepare()
@@ -722,6 +911,13 @@
 		cdialect "gnu11"
 		prepare()
 		test.contains({ "-std=gnu11" }, gcc.getcflags(cfg))
+		test.contains({ }, gcc.getcxxflags(cfg))
+	end
+
+	function suite.cflags_ongnu17()
+		cdialect "gnu17"
+		prepare()
+		test.contains({ "-std=gnu17" }, gcc.getcflags(cfg))
 		test.contains({ }, gcc.getcxxflags(cfg))
 	end
 
@@ -760,6 +956,27 @@
 		test.contains({ }, gcc.getcflags(cfg))
 	end
 
+	function suite.cxxflags_onCpp2a()
+		cppdialect "C++2a"
+		prepare()
+		test.contains({ "-std=c++2a" }, gcc.getcxxflags(cfg))
+		test.contains({ }, gcc.getcflags(cfg))
+	end
+
+	function suite.cxxflags_onCpp20()
+		cppdialect "C++20"
+		prepare()
+		test.contains({ "-std=c++20" }, gcc.getcxxflags(cfg))
+		test.contains({ }, gcc.getcflags(cfg))
+	end
+
+	function suite.cxxflags_onCppLatest()
+		cppdialect "C++latest"
+		prepare()
+		test.contains({ "-std=c++20" }, gcc.getcxxflags(cfg))
+		test.contains({ }, gcc.getcflags(cfg))
+	end
+
 	function suite.cxxflags_onCppGnu98()
 		cppdialect "gnu++98"
 		prepare()
@@ -785,6 +1002,20 @@
 		cppdialect "gnu++17"
 		prepare()
 		test.contains({ "-std=gnu++17" }, gcc.getcxxflags(cfg))
+		test.contains({ }, gcc.getcflags(cfg))
+	end
+
+	function suite.cxxflags_onCppGnu2a()
+		cppdialect "gnu++2a"
+		prepare()
+		test.contains({ "-std=gnu++2a" }, gcc.getcxxflags(cfg))
+		test.contains({ }, gcc.getcflags(cfg))
+	end
+
+	function suite.cxxflags_onCppGnu20()
+		cppdialect "gnu++20"
+		prepare()
+		test.contains({ "-std=gnu++20" }, gcc.getcxxflags(cfg))
 		test.contains({ }, gcc.getcflags(cfg))
 	end
 
@@ -884,4 +1115,37 @@
 		prepare()
 		test.excludes({ "-fvisibility-inlines-hidden" }, gcc.getcflags(cfg))
 		test.contains({ "-fvisibility-inlines-hidden" }, gcc.getcxxflags(cfg))
+	end
+
+--
+-- Test compileas.
+--
+
+	function suite.cxxflags_compileasC()
+		compileas "C"
+		prepare()
+		test.contains({ "-x c" }, gcc.getcflags(cfg))
+		test.contains({ "-x c" }, gcc.getcxxflags(cfg))
+	end
+
+	function suite.cxxflags_compileasCPP()
+		compileas "C++"
+		prepare()
+		test.contains({ "-x c++" }, gcc.getcflags(cfg))
+		test.contains({ "-x c++" }, gcc.getcxxflags(cfg))
+	end
+
+	function suite.cxxflags_compileasObjC()
+		compileas "Objective-C"
+		prepare()
+		test.contains({ "-x objective-c" }, gcc.getcflags(cfg))
+		test.contains({ "-x objective-c" }, gcc.getcxxflags(cfg))
+	end
+
+	function suite.cxxflags_compileasObjCPP()
+		compileas "Objective-C++"
+
+		prepare()
+		test.contains({ "-x objective-c++" }, gcc.getcflags(cfg))
+		test.contains({ "-x objective-c++" }, gcc.getcxxflags(cfg))
 	end

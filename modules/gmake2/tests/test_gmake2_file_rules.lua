@@ -37,8 +37,35 @@
 			switch = "-p2"
 		}
 
+		propertydefinition {
+			name = "TestListProperty",
+			kind = "list"
+		}
+		propertydefinition {
+			name = "TestListPropertyWithSwitch",
+			kind = "list",
+			switch = "-S"
+		}
+		propertydefinition {
+			name = "TestListPropertySeparator",
+			kind = "list",
+			separator = ","
+		}
+		propertydefinition {
+			name = "TestListPropertySeparatorWithSwitch",
+			kind = "list",
+			separator = ",",
+			switch = "-O"
+		}
+		propertydefinition {
+			name = "TestEnumProperty",
+			values = { [0] = "V0", [1] = "V1"},
+			switch = { [0] = "S0", [1] = "S1"},
+			value = 0
+		}
+
 		buildmessage 'Rule-ing %{file.name}'
-		buildcommands 'dorule %{TestProperty} %{TestProperty2} "%{file.path}"'
+		buildcommands 'dorule %{TestProperty} %{TestProperty2} %{TestListProperty} %{TestListPropertyWithSwitch} %{TestListPropertySeparator} %{TestListPropertySeparatorWithSwitch} %{TestEnumProperty} "%{file.path}"'
 		buildoutputs { "%{file.basename}.obj" }
 
 		wks = test.createWorkspace()
@@ -66,10 +93,10 @@
 # #############################################
 
 $(OBJDIR)/hello.o: src/greetings/hello.cpp
-	@echo $(notdir $<)
+	@echo "$(notdir $<)"
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/hello1.o: src/hello.cpp
-	@echo $(notdir $<)
+	@echo "$(notdir $<)"
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 
 		]]
@@ -88,10 +115,10 @@ $(OBJDIR)/hello1.o: src/hello.cpp
 # #############################################
 
 $(OBJDIR)/hello.o: src/hello.c
-	@echo $(notdir $<)
+	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/test.o: src/test.cpp
-	@echo $(notdir $<)
+	@echo "$(notdir $<)"
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 
 		]]
@@ -111,10 +138,10 @@ $(OBJDIR)/test.o: src/test.cpp
 # #############################################
 
 $(OBJDIR)/hello.o: src/hello.c
-	@echo $(notdir $<)
+	@echo "$(notdir $<)"
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/test.o: src/test.c
-	@echo $(notdir $<)
+	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 		]]
 	end
@@ -133,21 +160,19 @@ $(OBJDIR)/test.o: src/test.c
 # #############################################
 
 $(OBJDIR)/test.o: src/test.c
-	@echo $(notdir $<)
+	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 
 ifeq ($(config),debug)
 $(OBJDIR)/hello.o: src/hello.c
-	@echo $(notdir $<)
+	@echo "$(notdir $<)"
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 
 else ifeq ($(config),release)
 $(OBJDIR)/hello.o: src/hello.c
-	@echo $(notdir $<)
+	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 
-else
-  $(error "invalid configuration $(config)")
 endif
 		]]
 	end
@@ -173,21 +198,51 @@ endif
 
 ifeq ($(config),debug)
 obj/Debug/hello.obj: hello.x
-	@echo Compiling hello.x
+	@echo "Compiling hello.x"
 	$(SILENT) cxc -c "hello.x" -o "obj/Debug/hello.xo"
 	$(SILENT) c2o -c "obj/Debug/hello.xo" -o "obj/Debug/hello.obj"
 
 else ifeq ($(config),release)
 obj/Release/hello.obj: hello.x
-	@echo Compiling hello.x
+	@echo "Compiling hello.x"
 	$(SILENT) cxc -c "hello.x" -o "obj/Release/hello.xo"
 	$(SILENT) c2o -c "obj/Release/hello.xo" -o "obj/Release/hello.obj"
 
-else
-  $(error "invalid configuration $(config)")
 endif
 		]]
 	end
+
+--
+-- If a custom build rule is supplied, it should be used.
+--
+
+	function suite.customBuildRuleWithEscaping()
+		files { "hello.x" }
+		filter "files:**.x"
+			buildmessage '"Compiling %{file.name}"'
+			buildcommands {
+				'cxc -c "%{file.path}" -o "%{cfg.objdir}/%{file.basename}.xo"',
+			}
+			buildoutputs { "%{cfg.objdir}/%{file.basename}.obj" }
+		prepare()
+		test.capture [[
+# File Rules
+# #############################################
+
+ifeq ($(config),debug)
+obj/Debug/hello.obj: hello.x
+	@echo "\"Compiling hello.x\""
+	$(SILENT) cxc -c "hello.x" -o "obj/Debug/hello.xo"
+
+else ifeq ($(config),release)
+obj/Release/hello.obj: hello.x
+	@echo "\"Compiling hello.x\""
+	$(SILENT) cxc -c "hello.x" -o "obj/Release/hello.xo"
+
+endif
+		]]
+	end
+
 
 	function suite.customBuildRuleWithAdditionalInputs()
 		files { "hello.x" }
@@ -206,18 +261,48 @@ endif
 
 ifeq ($(config),debug)
 obj/Debug/hello.obj: hello.x hello.x.inc hello.x.inc2
-	@echo Compiling hello.x
+	@echo "Compiling hello.x"
 	$(SILENT) cxc -c "hello.x" -o "obj/Debug/hello.xo"
 	$(SILENT) c2o -c "obj/Debug/hello.xo" -o "obj/Debug/hello.obj"
 
 else ifeq ($(config),release)
 obj/Release/hello.obj: hello.x hello.x.inc hello.x.inc2
-	@echo Compiling hello.x
+	@echo "Compiling hello.x"
 	$(SILENT) cxc -c "hello.x" -o "obj/Release/hello.xo"
 	$(SILENT) c2o -c "obj/Release/hello.xo" -o "obj/Release/hello.obj"
 
-else
-  $(error "invalid configuration $(config)")
+endif
+		]]
+	end
+
+	function suite.customBuildRuleWithAdditionalOutputs()
+		files { "hello.x" }
+		filter "files:**.x"
+			buildmessage "Compiling %{file.name}"
+			buildcommands {
+				'cxc -c "%{file.path}" -o "%{cfg.objdir}/%{file.basename}.xo"',
+				'c2o -c "%{cfg.objdir}/%{file.basename}.xo" -o "%{cfg.objdir}/%{file.basename}.obj"'
+			}
+			buildoutputs { "%{cfg.objdir}/%{file.basename}.obj", "%{cfg.objdir}/%{file.basename}.other", "%{cfg.objdir}/%{file.basename}.another" }
+		prepare()
+		test.capture [[
+# File Rules
+# #############################################
+
+ifeq ($(config),debug)
+obj/Debug/hello.obj: hello.x
+	@echo "Compiling hello.x"
+	$(SILENT) cxc -c "hello.x" -o "obj/Debug/hello.xo"
+	$(SILENT) c2o -c "obj/Debug/hello.xo" -o "obj/Debug/hello.obj"
+obj/Debug/hello.other obj/Debug/hello.another: obj/Debug/hello.obj
+
+else ifeq ($(config),release)
+obj/Release/hello.obj: hello.x
+	@echo "Compiling hello.x"
+	$(SILENT) cxc -c "hello.x" -o "obj/Release/hello.xo"
+	$(SILENT) c2o -c "obj/Release/hello.xo" -o "obj/Release/hello.obj"
+obj/Release/hello.other obj/Release/hello.another: obj/Release/hello.obj
+
 endif
 		]]
 	end
@@ -243,10 +328,84 @@ endif
 # #############################################
 
 test.obj: test.rule
-	@echo Rule-ing test.rule
-	$(SILENT) dorule -p  "test.rule"
+	@echo "Rule-ing test.rule"
+	$(SILENT) dorule -p       "test.rule"
 test2.obj: test2.rule
-	@echo Rule-ing test2.rule
-	$(SILENT) dorule -p -p2 "test2.rule"
+	@echo "Rule-ing test2.rule"
+	$(SILENT) dorule -p -p2      "test2.rule"
+		]]
+	end
+
+	function suite.propertydefinitionSeparator()
+
+		rules { "TestRule" }
+
+		files { "test.rule", "test2.rule", "test3.rule", "test4.rule" }
+
+		filter "files:test.rule"
+			testRuleVars {
+				TestListProperty = { "testValue1", "testValue2" }
+			}
+
+		filter "files:test2.rule"
+			testRuleVars {
+				TestListPropertyWithSwitch = { "testValue1", "testValue2" }
+			}
+
+		filter "files:test3.rule"
+			testRuleVars {
+				TestListPropertySeparator = { "testValue1", "testValue2" }
+			}
+		filter "files:test4.rule"
+			testRuleVars {
+				TestListPropertySeparatorWithSwitch = { "testValue1", "testValue2" }
+			}
+
+		prepare()
+		test.capture [[
+# File Rules
+# #############################################
+
+test.obj: test.rule
+	@echo "Rule-ing test.rule"
+	$(SILENT) dorule   testValue1\ testValue2     "test.rule"
+test2.obj: test2.rule
+	@echo "Rule-ing test2.rule"
+	$(SILENT) dorule    -StestValue1\ -StestValue2    "test2.rule"
+test3.obj: test3.rule
+	@echo "Rule-ing test3.rule"
+	$(SILENT) dorule     testValue1,testValue2   "test3.rule"
+test4.obj: test4.rule
+	@echo "Rule-ing test4.rule"
+	$(SILENT) dorule      -OtestValue1,testValue2  "test4.rule"
+		]]
+	end
+
+	function suite.customRuleWithPropertyDefinitionEnum()
+
+		rules { "TestRule" }
+
+		files { "test.rule", "test2.rule" }
+
+		testRuleVars {
+			TestEnumProperty = "V0"
+		}
+
+		filter "files:test2.rule"
+			testRuleVars {
+				TestEnumProperty = "V1"
+			}
+
+		prepare()
+		test.capture [[
+# File Rules
+# #############################################
+
+test.obj: test.rule
+	@echo "Rule-ing test.rule"
+	$(SILENT) dorule       S0 "test.rule"
+test2.obj: test2.rule
+	@echo "Rule-ing test2.rule"
+	$(SILENT) dorule       S1 "test2.rule"
 		]]
 	end

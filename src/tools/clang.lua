@@ -49,6 +49,7 @@
 			Fast = "-ffast-math",
 		},
 		strictaliasing = gcc.shared.strictaliasing,
+		openmp = gcc.shared.openmp,
 		optimize = {
 			Off = "-O0",
 			On = "-O2",
@@ -63,7 +64,8 @@
 		warnings = gcc.shared.warnings,
 		symbols = gcc.shared.symbols,
 		unsignedchar = gcc.shared.unsignedchar,
-		omitframepointer = gcc.shared.omitframepointer
+		omitframepointer = gcc.shared.omitframepointer,
+		compileas = gcc.shared.compileas
 	}
 
 	clang.cflags = table.merge(gcc.cflags, {
@@ -74,7 +76,7 @@
 		local cflags = config.mapFlags(cfg, clang.cflags)
 
 		local flags = table.join(shared, cflags)
-		flags = table.join(flags, clang.getwarnings(cfg))
+		flags = table.join(flags, clang.getwarnings(cfg), clang.getsystemversionflags(cfg))
 
 		return flags
 	end
@@ -83,6 +85,23 @@
 		return gcc.getwarnings(cfg)
 	end
 
+--
+-- Returns C/C++ system version related build flags
+--
+
+	function clang.getsystemversionflags(cfg)
+		local flags = {}
+
+		if cfg.system == p.MACOSX or cfg.system == p.IOS then
+			local minVersion = p.project.systemversion(cfg)
+			if minVersion ~= nil then
+				local name = iif(cfg.system == p.MACOSX, "macosx", "iphoneos")
+				table.insert (flags, "-m" .. name .. "-version-min=" .. p.project.systemversion(cfg))
+			end
+		end
+
+		return flags
+	end
 
 --
 -- Build a list of C++ compiler flags corresponding to the settings
@@ -96,13 +115,16 @@
 --
 
 	clang.cxxflags = table.merge(gcc.cxxflags, {
+		sanitize = {
+			Fuzzer = "-fsanitize=fuzzer",
+		},
 	})
 
 	function clang.getcxxflags(cfg)
 		local shared = config.mapFlags(cfg, clang.shared)
 		local cxxflags = config.mapFlags(cfg, clang.cxxflags)
 		local flags = table.join(shared, cxxflags)
-		flags = table.join(flags, clang.getwarnings(cfg))
+		flags = table.join(flags, clang.getwarnings(cfg), clang.getsystemversionflags(cfg))
 		return flags
 	end
 
@@ -164,14 +186,23 @@
 -- @param dirs
 --    An array of include file search directories; as an array of
 --    string values.
+-- @param extdirs
+--    An array of include file search directories for external includes;
+--    as an array of string values.
+-- @param frameworkdirs
+--    An array of file search directories for the framework includes;
+--    as an array of string vlaues
+-- @param includedirsafter
+--    An array of include file search directories for includes after system;
+--    as an array of string values.
 -- @return
 --    An array of symbols with the appropriate flag decorations.
 --
 
-	function clang.getincludedirs(cfg, dirs, sysdirs)
+	function clang.getincludedirs(cfg, dirs, extdirs, frameworkdirs, includedirsafter)
 
 		-- Just pass through to GCC for now
-		local flags = gcc.getincludedirs(cfg, dirs, sysdirs)
+		local flags = gcc.getincludedirs(cfg, dirs, extdirs, frameworkdirs, includedirsafter)
 		return flags
 
 	end
@@ -210,7 +241,7 @@
 					table.insert(r, '-Wl,--out-implib="' .. cfg.linktarget.relpath .. '"')
 				elseif cfg.system == p.LINUX then
 					table.insert(r, '-Wl,-soname=' .. p.quoted(cfg.linktarget.name))
-				elseif cfg.system == p.MACOSX then
+				elseif table.contains(os.getSystemTags(cfg.system), "darwin") then
 					table.insert(r, '-Wl,-install_name,' .. p.quoted('@rpath/' .. cfg.linktarget.name))
 				end
 				return r
@@ -218,6 +249,9 @@
 			WindowedApp = function(cfg)
 				if cfg.system == p.WINDOWS then return "-mwindows" end
 			end,
+		},
+		sanitize = {
+			Address = "-fsanitize=address",
 		},
 		system = {
 			wii = "$(MACHDEP)",
@@ -306,9 +340,18 @@
 	clang.tools = {
 		cc = "clang",
 		cxx = "clang++",
-		ar = "ar"
+		ar = function(cfg) return iif(cfg.flags.LinkTimeOptimization, "llvm-ar", "ar") end,
+		rc = "windres"
 	}
 
 	function clang.gettoolname(cfg, tool)
-		return clang.tools[tool]
+		local toolset, version = p.tools.canonical(cfg.toolset or p.CLANG)
+		local value = clang.tools[tool]
+		if type(value) == "function" then
+			value = value(cfg)
+		end
+		if toolset == p.tools.clang and version ~= nil then
+			value = value .. "-" .. version
+		end
+		return value
 	end

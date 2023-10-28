@@ -1,8 +1,8 @@
-﻿/**
-* \file   premake.h
-* \brief  Program-wide constants and definitions.
-* \author Copyright (c) 2002-2015 Jason Perkins and the Premake project
-*/
+/**
+ * \file   premake.h
+ * \brief  Program-wide constants and definitions.
+ * \author Copyright (c) 2002-2021 Jason Perkins and the Premake project
+ */
 
 #define lua_c
 #include "lua.h"
@@ -12,11 +12,11 @@
 #include <stdlib.h>
 
 #define PREMAKE_VERSION        "5.0.0-dev"
-#define PREMAKE_COPYRIGHT      "Copyright (C) 2002-2017 Jason Perkins and the Premake Project"
+#define PREMAKE_COPYRIGHT      "Copyright (C) 2002-2021 Jason Perkins and the Premake Project"
 #define PREMAKE_PROJECT_URL    "https://github.com/premake/premake-core/wiki"
 
 /* Identify the current platform I'm not sure how to reliably detect
-* Windows but since it is the most common I use it as the default */
+ * Windows but since it is the most common I use it as the default */
 #if defined(__linux__)
 #define PLATFORM_LINUX    (1)
 #define PLATFORM_STRING   "linux"
@@ -43,7 +43,7 @@
 #define PLATFORM_STRING   "windows"
 #endif
 
-#define PLATFORM_POSIX  (PLATFORM_LINUX || PLATFORM_BSD || PLATFORM_MACOSX || PLATFORM_SOLARIS)
+#define PLATFORM_POSIX  (PLATFORM_LINUX || PLATFORM_BSD || PLATFORM_MACOSX || PLATFORM_SOLARIS || PLATFORM_HAIKU)
 
 
 /* Pull in platform-specific headers required by built-in functions */
@@ -53,6 +53,7 @@
 #else
 #include <unistd.h>
 #endif
+#include <stdint.h>
 
 /* not all platforms define this */
 #ifndef FALSE
@@ -85,7 +86,7 @@ extern const char* scripts_path;
 
 /* Bootstrapping helper functions */
 int do_chdir(lua_State* L, const char* path);
-unsigned long do_hash(const char* str, int seed);
+uint32_t do_hash(const char* str, int seed);
 void do_getabsolute(char* result, const char* value, const char* relative_to);
 int do_getcwd(char* buffer, size_t size);
 int do_isabsolute(const char* path);
@@ -122,6 +123,7 @@ int os_copyfile(lua_State* L);
 int os_getcwd(lua_State* L);
 int os_getpass(lua_State* L);
 int os_getWindowsRegistry(lua_State* L);
+int os_listWindowsRegistry(lua_State* L);
 int os_getversion(lua_State* L);
 int os_host(lua_State* L);
 int os_is64bit(lua_State* L);
@@ -169,19 +171,20 @@ int http_download(lua_State* L);
 
 #ifdef PREMAKE_COMPRESSION
 int zip_extract(lua_State* L);
-#endif 
+#endif
+
 
 #ifdef PREMAKE_YAML
-int yaml_load(lua_State *L);
-int yaml_dump(lua_State *L);
-int yaml_config(lua_State *L);
-int yaml_null(lua_State *L);
+int yaml_load(lua_State* L);
+int yaml_dump(lua_State* L);
+int yaml_config(lua_State* L);
+int yaml_null(lua_State* L);
 #endif
 
 #ifdef _MSC_VER
-#ifndef snprintf
-#define snprintf _snprintf
-#endif
+ #ifndef snprintf
+  #define snprintf _snprintf
+ #endif
 #endif
 
 /* Engine interface */

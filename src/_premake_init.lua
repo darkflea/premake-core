@@ -165,6 +165,7 @@
 			"Pure",
 			"Safe",
 			"Unsafe",
+			"NetCore",
 		}
 	}
 
@@ -182,7 +183,18 @@
 			"Default",
 			"C",
 			"C++",
+			"Objective-C",
+			"Objective-C++",
+			"Module",
+			"ModulePartition",
+			"HeaderUnit"
 		}
+	}
+
+	api.register {
+		name = "allmodulespublic",
+		scope = "config",
+		kind = "boolean"
 	}
 
 	api.register {
@@ -195,6 +207,12 @@
 		name = "configurations",
 		scope = "project",
 		kind = "list:string",
+	}
+
+	api.register {
+		name = "consumewinrtextension",
+		scope = "config",
+		kind = "boolean",
 	}
 
 	api.register {
@@ -255,7 +273,10 @@
 		scope = "config",
 		kind = "string",
 		allowed = {
+			"Default",
 			"c7",
+			"Dwarf",
+			"SplitDwarf",
 		},
 	}
 
@@ -425,6 +446,12 @@
 	}
 
 	api.register {
+		name = "fastuptodate",
+		scope = "project",
+		kind = "boolean",
+	}
+
+	api.register {
 		name = "fatalwarnings",
 		scope = "config",
 		kind = "list:string",
@@ -484,7 +511,7 @@
 			"NoEditAndContinue",   -- DEPRECATED
 			"NoFramePointer",      -- DEPRECATED
 			"NoImplicitLink",
-			"NoImportLib",
+			"NoImportLib",         -- DEPRECATED
 			"NoIncrementalLink",
 			"NoManifest",
 			"NoMinimalRebuild",
@@ -591,6 +618,19 @@
 	}
 
 	api.register {
+		name = "enabledefaultcompileitems",
+		scope = "config",
+		kind = "boolean",
+		default = false
+	}
+
+	api.register {
+		name = "csversion",
+		scope = "config",
+		kind = "string",
+	}
+
+	api.register {
 		name = "gccprefix",
 		scope = "config",
 		kind = "string",
@@ -602,6 +642,12 @@
 		scope = "config",
 		kind = "list:mixed",
 		tokens = true,
+	}
+
+	api.register {
+		name = "inheritdependencies",
+		scope = "config",
+		kind = "boolean",
 	}
 
 	api.register {
@@ -692,6 +738,7 @@
 			"StaticLib",
 			"WindowedApp",
 			"Utility",
+			"SharedItems",
 		},
 	}
 
@@ -702,6 +749,7 @@
 		allowed = {
 			"OSXBundle",
 			"OSXFramework",
+			"XCTest",
 		},
 	}
 
@@ -727,10 +775,12 @@
 			"C90",
 			"C99",
 			"C11",
+			"C17",
 			"gnu89",
 			"gnu90",
 			"gnu99",
 			"gnu11",
+			"gnu17"
 		}
 	}
 
@@ -748,6 +798,8 @@
 			"C++14",
 			"C++1z",
 			"C++17",
+			"C++2a",
+			"C++20",
 			"gnu++98",
 			"gnu++0x",
 			"gnu++11",
@@ -755,6 +807,37 @@
 			"gnu++14",
 			"gnu++1z",
 			"gnu++17",
+			"gnu++2a",
+			"gnu++20",
+		}
+	}
+
+	api.register {
+		name = "conformancemode",
+		scope = "config",
+		kind = "boolean"
+	}
+
+	api.register {
+		name = "usefullpaths",
+		scope = "config",
+		kind = "boolean"
+	}
+
+	api.register {
+		name = "removeunreferencedcodedata",
+		scope = "config",
+		kind = "boolean"
+	}
+
+	api.register {
+		name = "swiftversion",
+		scope = "config",
+		kind = "string",
+		allowed = {
+			"4.0",
+			"4.2",
+			"5.0",
 		}
 	}
 
@@ -1036,6 +1119,16 @@
 	}
 
 	api.register {
+		name = "sanitize",
+		scope = "config",
+		kind = "list:string",
+		allowed = {
+			"Address",
+			"Fuzzer",              -- Visual Studio 2022+ only
+		}
+	}
+
+	api.register {
 		name = "startproject",
 		scope = "workspace",
 		kind = "string",
@@ -1092,13 +1185,6 @@
 	}
 
 	api.register {
-		name = "sysincludedirs",
-		scope = "config",
-		kind = "list:directory",
-		tokens = true,
-	}
-
-	api.register {
 		name = "syslibdirs",
 		scope = "config",
 		kind = "list:directory",
@@ -1117,6 +1203,7 @@
 			"linux",
 			"macosx",
 			"solaris",
+			"uwp",
 			"wii",
 			"windows",
 		},
@@ -1191,6 +1278,13 @@
 	}
 
 	api.register {
+		name = "toolsversion",
+		scope = "project",
+		kind = "string",
+		tokens = true,
+	}
+
+	api.register {
 		name = "customtoolnamespace",
 		scope = "config",
 		kind = "string",
@@ -1246,6 +1340,7 @@
 			"SSE3",
 			"SSSE3",
 			"SSE4.1",
+			"SSE4.2",
 		}
 	}
 
@@ -1285,6 +1380,7 @@
 			"Default",
 			"High",
 			"Extra",
+			"Everything",
 		}
 	}
 
@@ -1362,6 +1458,71 @@
 			"Hidden"
 		}
 	}
+
+	api.register {
+		name = "assemblydebug",
+		scope = "config",
+		kind  = "boolean"
+	}
+
+	api.register {
+		name = "justmycode",
+		scope = "project",
+		kind = "string",
+		allowed = {
+			"On",
+			"Off"
+		}
+	}
+
+	api.register {
+		name = "openmp",
+		scope = "project",
+		kind = "string",
+		allowed = {
+			"On",
+			"Off"
+		}
+	}
+
+	api.register {
+		name = "externalincludedirs",
+		scope = "config",
+		kind = "list:directory",
+		tokens = true,
+	}
+
+	api.register {
+		name = "externalwarnings",
+		scope = "config",
+		kind = "string",
+		allowed = {
+			"Off",
+			"Default",
+			"High",
+			"Extra",
+			"Everything",
+		}
+	}
+
+	api.register {
+		name = "includedirsafter",
+		scope = "config",
+		kind = "list:directory",
+		tokens = true
+	}
+
+	api.register {   -- DEPRECATED 2021-11-16
+		name = "sysincludedirs",
+		scope = "config",
+		kind = "list:directory",
+		tokens = true,
+	}
+
+	api.deprecateField("sysincludedirs", 'Use `externalincludedirs` instead.',
+	function(value)
+		externalincludedirs(value)
+	end)
 
 -----------------------------------------------------------------------------
 --
@@ -1621,17 +1782,33 @@
 
 	newoption
 	{
+		category	= "compilers",
 		trigger     = "cc",
 		value       = "VALUE",
 		description = "Choose a C/C++ compiler set",
 		allowed = {
 			{ "clang", "Clang (clang)" },
 			{ "gcc", "GNU GCC (gcc/g++)" },
+			{ "mingw", "MinGW GCC (gcc/g++)" },
+			{ "msc-v80", "Microsoft compiler (Visual Studio 2005)" },
+			{ "msc-v90", "Microsoft compiler (Visual Studio 2008)" },
+			{ "msc-v100", "Microsoft compiler (Visual Studio 2010)" },
+			{ "msc-v110", "Microsoft compiler (Visual Studio 2012)" },
+			{ "msc-v120", "Microsoft compiler (Visual Studio 2013)" },
+			{ "msc-v140", "Microsoft compiler (Visual Studio 2015)" },
+			{ "msc-v141", "Microsoft compiler (Visual Studio 2017)" },
+			{ "msc-v142", "Microsoft compiler (Visual Studio 2019)" },
+			{ "msc-v143", "Microsoft compiler (Visual Studio 2022)" },
+			function (name)
+				local toolset, version = p.tools.canonical(name)
+				return toolset
+			end
 		}
 	}
 
 	newoption
 	{
+		category	= "compilers",
 		trigger     = "dotnet",
 		value       = "VALUE",
 		description = "Choose a .NET compiler set",
@@ -1689,9 +1866,11 @@
 			{ "bsd",      "OpenBSD, NetBSD, or FreeBSD" },
 			{ "haiku",    "Haiku" },
 			{ "hurd",     "GNU/Hurd" },
+			{ "ios",      "iOS" },
 			{ "linux",    "Linux" },
 			{ "macosx",   "Apple Mac OS X" },
 			{ "solaris",  "Solaris" },
+			{ "uwp",      "Microsoft Universal Windows Platform"},
 			{ "windows",  "Microsoft Windows" },
 		}
 	}
@@ -1719,7 +1898,7 @@
 	if http ~= nil then
 		newoption {
 			trigger = "insecure",
-			description = "forfit SSH certification checks."
+			description = "Forfeit SSH certification checks."
 		}
 	end
 
@@ -1755,11 +1934,23 @@
 
 	-- Add variations for other Posix-like systems.
 
-	filter { "system:MacOSX", "kind:WindowedApp" }
+	filter { "system:darwin", "kind:WindowedApp" }
 		targetextension ".app"
 
-	filter { "system:MacOSX", "kind:SharedLib" }
+	filter { "system:darwin", "kind:SharedLib" }
 		targetextension ".dylib"
+
+	filter { "system:darwin", "kind:SharedLib", "sharedlibtype:OSXBundle" }
+		targetprefix ""
+		targetextension ".bundle"
+
+	filter { "system:darwin", "kind:SharedLib", "sharedlibtype:OSXFramework" }
+		targetprefix ""
+		targetextension ".framework"
+
+	filter { "system:darwin", "kind:SharedLib", "sharedlibtype:XCTest" }
+		targetprefix ""
+		targetextension ".xctest"
 
 	-- Windows and friends.
 
@@ -1783,7 +1974,10 @@
 	filter { "kind:SharedLib", "system:not Windows" }
 		pic "On"
 
-	filter { "system:macosx" }
+	filter { "system:darwin" }
 		toolset "clang"
+
+	filter { "platforms:Win64" }
+		architecture "x86_64"
 
 	filter {}

@@ -21,7 +21,7 @@
 -- Patch the vstudio actions with D support...
 --
 
-	for k,v in pairs({ "vs2005", "vs2008", "vs2010", "vs2012", "vs2013", "vs2015", "vs2017" }) do
+	for k,v in pairs({ "vs2005", "vs2008", "vs2010", "vs2012", "vs2013", "vs2015", "vs2017", "vs2019" }) do
 		local vs = p.action.get(v)
 		if vs ~= nil then
 			table.insert( vs.valid_languages, p.D )
@@ -175,7 +175,12 @@
 			_p(2,'<ignoreUnsupportedPragmas>0</ignoreUnsupportedPragmas>')
 
 			local compiler = { dmd="0", gdc="1", ldc="2" }
-			m.visuald.element(2, "compiler", compiler[_OPTIONS.dc or cfg.toolset or "dmd"])
+			local compilerName, err = p.api.checkValue(p.fields.toolset, _OPTIONS.dc or cfg.toolset or "dmd")
+			if err then
+				error { msg=err }
+			end
+
+			m.visuald.element(2, "compiler", compiler[compilerName])
 
 			m.visuald.element(2, "otherDMD", '0')
 			m.visuald.element(2, "program", '$(DMDInstallDir)windows\\bin\\dmd.exe')

@@ -15,11 +15,18 @@
 -- Generate a Visual Studio 201x C++ project, with support for the new platforms API.
 --
 
+	m.elements.filters = function(prj)
+		return {
+			m.xmlDeclaration,
+			m.filtersProject,
+			m.uniqueIdentifiers,
+			m.filterGroups,
+		}
+	end
+
 	function m.generateFilters(prj)
-		m.xmlDeclaration()
-		m.filtersProject()
-		m.uniqueIdentifiers(prj)
-		m.filterGroups(prj)
+		p.utf8()
+		p.callArray(m.elements.filters, prj)
 		p.out('</Project>')
 	end
 
@@ -78,12 +85,19 @@
 		if files and #files > 0 then
 			p.push('<ItemGroup>')
 			for _, file in ipairs(files) do
+				local rel = path.translate(file.relpath)
+
+				-- SharedItems projects paths are prefixed with a magical variable
+				if prj.kind == p.SHAREDITEMS then
+					rel = "$(MSBuildThisFileDirectory)" .. rel
+				end
+
 				if file.parent.path then
-					p.push('<%s Include=\"%s\">', tag, path.translate(file.relpath))
+					p.push('<%s Include=\"%s\">', tag, rel)
 					p.w('<Filter>%s</Filter>', path.translate(file.parent.path, '\\'))
 					p.pop('</%s>', tag)
 				else
-					p.w('<%s Include=\"%s\" />', tag, path.translate(file.relpath))
+					p.w('<%s Include=\"%s\" />', tag, rel)
 				end
 			end
 			p.pop('</ItemGroup>')

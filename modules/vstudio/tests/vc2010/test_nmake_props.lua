@@ -151,6 +151,61 @@ command 2</NMakeBuildCommandLine>
 		]]
 	end
 
+	function suite.onBinDirs()
+		bindirs { "include/lua", "include/zlib" }
+		prepare()
+		test.capture [[
+<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+	<ExecutablePath>$(ProjectDir)include\lua;$(ProjectDir)include\zlib;$(ExecutablePath)</ExecutablePath>
+	<NMakeOutput>$(OutDir)MyProject</NMakeOutput>
+</PropertyGroup>
+		]]
+	end
+
+	function suite.onExternalIncludeDirs()
+		externalincludedirs { "include/lua", "include/zlib" }
+		prepare()
+		test.capture [[
+<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+	<IncludePath>include\lua;include\zlib;$(IncludePath)</IncludePath>
+	<NMakeOutput>$(OutDir)MyProject</NMakeOutput>
+</PropertyGroup>
+		]]
+	end
+
+	function suite.onSysLibDirs()
+		syslibdirs { "include/lua", "include/zlib" }
+		prepare()
+		test.capture [[
+<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+	<LibraryPath>include\lua;include\zlib;$(LibraryPath)</LibraryPath>
+	<NMakeOutput>$(OutDir)MyProject</NMakeOutput>
+</PropertyGroup>
+		]]
+	end
+
+	function suite.onCppDialect()
+		cppdialect "C++14"
+		prepare()
+		test.capture [[
+<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+	<NMakeOutput>$(OutDir)MyProject</NMakeOutput>
+	<AdditionalOptions>/std:c++14 %(AdditionalOptions)</AdditionalOptions>
+</PropertyGroup>
+		]]
+	end
+
+	function suite.onBuildOptions()
+		buildoptions { "testing" }
+		prepare()
+		test.capture [[
+<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+	<NMakeOutput>$(OutDir)MyProject</NMakeOutput>
+	<AdditionalOptions>testing %(AdditionalOptions)</AdditionalOptions>
+</PropertyGroup>
+		]]
+	end
+
 
 --
 -- Should not emit include dirs or preprocessor definitions if the project

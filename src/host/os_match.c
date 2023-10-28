@@ -161,13 +161,10 @@ int os_matchisfile(lua_State* L)
 {
 	MatchInfo* m = (MatchInfo*)lua_touserdata(L, 1);
 #if defined(_DIRENT_HAVE_D_TYPE)
+	// Dirent marks symlinks as DT_LNK, not (DT_LNK|DT_DIR). The fallback handles symlinks using stat.
 	if (m->entry->d_type == DT_DIR)
 	{
 		lua_pushboolean(L, 0);
-	}
-	else if (m->entry->d_type == DT_REG)
-	{
-		lua_pushboolean(L, 1);
 	}
 	else
 #endif

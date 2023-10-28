@@ -30,7 +30,7 @@
 
 		local tagsdb = ""
 --		local tagsdb = "./" .. wks.name .. ".tags"
-		p.push('<CodeLite_Workspace Name="%s" Database="%s" SWTLW="No">', wks.name, tagsdb)
+		p.push('<CodeLite_Workspace Name="%s" Database="%s" Version="10000">', wks.name, tagsdb)
 
 		--
 		-- Project list
@@ -82,10 +82,12 @@
 
 		-- for each workspace config
 		p.push('<BuildMatrix>')
+		local selected = "yes" -- only one configuration should be selected
 		for cfg in workspace.eachconfig(wks) do
 
 			local cfgname = codelite.cfgname(cfg)
-			p.push('<WorkspaceConfiguration Name="%s" Selected="yes">', cfgname)
+			p.push('<WorkspaceConfiguration Name="%s" Selected="%s">', cfgname, selected)
+			selected = "no"
 
 			local tr = workspace.grouptree(wks)
 			tree.traverse(tr, {
@@ -100,4 +102,5 @@
 		p.pop('</BuildMatrix>')
 
 		p.pop('</CodeLite_Workspace>')
+		p.w('')
 	end

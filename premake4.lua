@@ -19,7 +19,7 @@
 		kind        "ConsoleApp"
 		defines     { "PREMAKE_NO_BUILTIN_SCRIPTS" }
 		flags       { "No64BitChecks", "ExtraWarnings", "StaticRuntime" }
-		includedirs { "contrib/lua/src" }
+		includedirs { "contrib/lua/src", "contrib/luashim" }
 
 		files
 		{
@@ -60,7 +60,7 @@
 		configuration "linux or bsd or hurd"
 			defines     { "LUA_USE_POSIX", "LUA_USE_DLOPEN" }
 			links       { "m" }
-			linkoptions { "-rdynamic", "-static-libstdc++" }
+			linkoptions { "-rdynamic" }
 
 		configuration "linux or hurd"
 			links       { "dl", "rt" }

@@ -42,7 +42,7 @@
 --			ProfileGC				= "-profile=gc",
 --			StackFrame				= "-gs",
 --			StackStomp				= "-gx",
---			AllTemplateInst			= "-allinst",
+--			AllInstantiate			= "-allinst",
 --			BetterC					= "-betterC",
 --			Main					= "-main",
 --			PerformSyntaxCheckOnly	= "-o-",
@@ -85,6 +85,7 @@
 --			Default = "-w",	-- TODO: check this...
 			High = "-Wall",
 			Extra = "-Wall -Wextra",
+			Everything = "-Weverything",
 		},
 		symbols = {
 			On = "-g",

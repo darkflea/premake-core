@@ -41,6 +41,15 @@
 
 
 	newaction {
+		trigger = "docs-check",
+		description = "Validates documentation files for Premake APIs",
+		execute = function ()
+			include (path.join(corePath, "scripts/docscheck.lua"))
+		end
+	}
+
+
+	newaction {
 		trigger = "test",
 		description = "Run the automated test suite",
 		execute = function ()
@@ -51,7 +60,13 @@
 
 
 	newoption {
-		trigger     = "test-only",
+		trigger = "test-all",
+		description = "Run all unit tests, including slower network and I/O"
+	}
+
+
+	newoption {
+		trigger = "test-only",
 		description = "When testing, run only the specified suite or test"
 	}
 
@@ -73,7 +88,6 @@
 		trigger = "no-zlib",
 		description = "Disable Zlib/Zip 3rd party lib"
 	}
-	
 
 	newoption {
 		trigger = "no-yaml",
@@ -87,7 +101,26 @@
 
 	newoption {
 		trigger     = "bytecode",
-		description = "Embed scripts as bytecode instead of stripped souce code"
+		description = "Embed scripts as bytecode instead of stripped source code"
+	}
+
+	newoption {
+		trigger = "arch",
+		value = "arch",
+		description = "Set the architecture of the binary to be built.",
+		allowed = {
+			{ "ARM", "ARM (On macOS, same as ARM64.)" },
+			{ "ARM64", "ARM64" },
+			{ "x86", "x86 (On macOS, same as x86_64.)" },
+			{ "x86_64", "x86_64" },
+			{ "Universal", "Universal Binary (macOS only)" },
+			--
+			{ "Win32", "Same as x86" },
+			{ "x64", "Same as x86_64" },
+			--
+			{ "default", "Generates default platforms for targets, x86 and x86_64 projects for Windows." }
+		},
+		default = "default",
 	}
 
 --
@@ -105,22 +138,47 @@
 		configurations { "Release", "Debug" }
 		location ( _OPTIONS["to"] )
 
-		flags { "StaticRuntime", "MultiProcessorCompile" }
+		flags { "MultiProcessorCompile" }
 		warnings "Extra"
 
 		if not _OPTIONS["no-zlib"] then
 			defines { "PREMAKE_COMPRESSION" }
 		end
-		
+
 		if not _OPTIONS["no-curl"] then
 			defines { "CURL_STATICLIB", "PREMAKE_CURL"}
 		end
+
 		if not _OPTIONS["no-yaml"] then
 			defines { "PREMAKE_YAML", "YAML_DECLARE_STATIC" }
 		end
 
-		filter { 'system:windows' }
-			platforms   { 'x86', 'x64' }
+		filter { "system:macosx", "options:arch=ARM or arch=ARM64" }
+			buildoptions { "-arch arm64" }
+			linkoptions { "-arch arm64" }
+
+		filter { "system:macosx", "options:arch=x86 or arch=x86_64 or arch=Win32 or arch=x64" }
+			buildoptions { "-arch x86_64" }
+			linkoptions { "-arch x86_64" }
+
+		filter { "system:macosx", "options:arch=Universal" }
+			buildoptions { "-arch arm64", "-arch x86_64" }
+			linkoptions { "-arch arm64", "-arch x86_64" }
+
+		filter { "system:windows", "options:arch=ARM" }
+			platforms { "ARM" }
+
+		filter { "system:windows", "options:arch=ARM64" }
+			platforms { "ARM64" }
+
+		filter { "system:windows", "options:arch=x86 or arch=Win32" }
+			platforms { "Win32" }
+
+		filter { "system:windows", "options:arch=x86_64 or arch=x64" }
+			platforms { "x64" }
+
+		filter { "system:windows", "options:arch=default" }
+			platforms { "x86", "x64" }
 
 		filter "configurations:Debug"
 			defines     "_DEBUG"
@@ -135,7 +193,15 @@
 			defines     { "_CRT_SECURE_NO_DEPRECATE", "_CRT_SECURE_NO_WARNINGS", "_CRT_NONSTDC_NO_WARNINGS" }
 
 		filter { "system:windows", "configurations:Release" }
-			flags       { "NoIncrementalLink", "LinkTimeOptimization" }
+			flags       { "NoIncrementalLink" }
+
+		-- MinGW AR does not handle LTO out of the box and need a plugin to be setup
+		filter { "system:windows", "configurations:Release", "toolset:not mingw" }
+			flags		{ "LinkTimeOptimization" }
+
+		filter { "system:uwp" }
+			systemversion "latest:latest"
+			consumewinrtextension "false"
 
 	project "Premake5"
 		targetname  "premake5"
@@ -149,11 +215,12 @@
 			includedirs { "contrib/zlib", "contrib/libzip" }
 			links { "zip-lib", "zlib-lib" }
 		end
-		
+
 		if not _OPTIONS["no-curl"] then
 			includedirs { "contrib/curl/include" }
 			links { "curl-lib" }
 		end
+
 		if not _OPTIONS["no-yaml"] then
 			includedirs { "contrib/lyaml/src" }
 			links { "lyaml-lib" }
@@ -181,12 +248,16 @@
 			targetdir   "bin/release"
 
 		filter "system:windows"
-			links       { "ole32", "ws2_32", "advapi32" }
+			links       { "ole32", "ws2_32", "advapi32", "version" }
+			files { "src/**.rc" }
+
+		filter "toolset:mingw"
+			links		{ "crypt32" }
 
 		filter "system:linux or bsd or hurd"
 			defines     { "LUA_USE_POSIX", "LUA_USE_DLOPEN" }
 			links       { "m" }
-			linkoptions { "-rdynamic", "-static-libstdc++" }
+			linkoptions { "-rdynamic" }
 
 		filter "system:linux or hurd"
 			links       { "dl", "rt" }
@@ -200,6 +271,9 @@
 			defines     { "LUA_USE_MACOSX" }
 			links       { "CoreServices.framework", "Foundation.framework", "Security.framework", "readline" }
 
+		filter "system:linux"
+			links		{ "uuid" }
+
 		filter { "system:macosx", "action:gmake" }
 			toolset "clang"
 
@@ -210,28 +284,33 @@
 			defines     { "LUA_USE_POSIX", "LUA_USE_DLOPEN" }
 			links       { "m" }
 
+		filter "system:haiku"
+			defines     { "LUA_USE_POSIX", "LUA_USE_DLOPEN", "_BSD_SOURCE" }
+			links       { "network", "bsd" }
+
 
 	-- optional 3rd party libraries
 	group "contrib"
 		include "contrib/lua"
 		include "contrib/luashim"
-		
+
 		if not _OPTIONS["no-zlib"] then
 			include "contrib/zlib"
 			include "contrib/libzip"
 		end
-		
+
 		if not _OPTIONS["no-curl"] then
 			include "contrib/mbedtls"
 			include "contrib/curl"
 		end
+
 		if not _OPTIONS["no-yaml"] then
 			include "contrib/lyaml"
-		end		
+		end	
 
 	group "Binary Modules"
 		include "binmodules/example"
-		
+
 		if not _OPTIONS["no-luasocket"] then
 			include "binmodules/luasocket"
 		end

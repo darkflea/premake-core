@@ -149,7 +149,7 @@
 
 
 --
--- Name should use "lib and ".a" for Mac static libraries.
+-- Name should use "lib" and ".a" for Mac static libraries.
 --
 
 	function suite.nameUsesLib_onMacStaticLib()
@@ -183,7 +183,7 @@
 		test.isequal("libMyProject.a", i.name)
 	end
 
-	
+
 --
 -- Name should use a prefix if set.
 --
@@ -216,6 +216,44 @@
 		system "MacOSX"
 		i = prepare()
 		test.isequal("bin/Debug/MyProject.app/Contents/MacOS", path.getrelative(os.getcwd(), i.bundlepath))
+	end
+
+
+--
+-- Bundle path should be set for macOS/iOS cocoa bundle.
+--
+
+	function suite.bundlepathSet_onMacSharedLibOSXBundle()
+		kind "SharedLib"
+		sharedlibtype "OSXBundle"
+		system "macosx"
+		i = prepare()
+		test.isequal("bin/Debug/MyProject.bundle/Contents/MacOS", path.getrelative(os.getcwd(), i.bundlepath))
+	end
+
+--
+-- Bundle path should be set for macOS/iOS cocoa unit test bundle.
+--
+
+	function suite.bundlepathSet_onMacSharedLibXCTest()
+		kind "SharedLib"
+		sharedlibtype "XCTest"
+		system "macosx"
+		i = prepare()
+		test.isequal("bin/Debug/MyProject.xctest/Contents/MacOS", path.getrelative(os.getcwd(), i.bundlepath))
+	end
+
+
+--
+-- Bundle path should be set for macOS/iOS framework.
+--
+
+	function suite.bundlepathSet_onMacSharedLibOSXFramework()
+		kind "SharedLib"
+		sharedlibtype "OSXFramework"
+		system "macosx"
+		i = prepare()
+		test.isequal("bin/Debug/MyProject.framework/Versions/A", path.getrelative(os.getcwd(), i.bundlepath))
 	end
 
 

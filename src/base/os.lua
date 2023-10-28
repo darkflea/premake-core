@@ -69,7 +69,7 @@
 		elseif os.istarget("haiku") then
 			path = os.getenv("LIBRARY_PATH") or ""
 		else
-			if os.istarget("macosx") then
+			if os.istarget("darwin") then
 				path = os.getenv("DYLD_LIBRARY_PATH") or ""
 			else
 				path = os.getenv("LD_LIBRARY_PATH") or ""
@@ -90,7 +90,7 @@
 
 			path = path or ""
 			local archpath = "/lib:/usr/lib:/usr/local/lib"
-			if os.is64bit() and not os.istarget("macosx") then
+			if os.is64bit() and not (os.istarget("darwin")) then
 				archpath = "/lib64:/usr/lib64/:usr/local/lib64" .. ":" .. archpath
 			end
 			if (#path > 0) then
@@ -103,10 +103,26 @@
 		return path
 	end
 
-	function os.findlib(libname, libdirs)
-		-- libname: library name with or without prefix and suffix
-		-- libdirs: (array or string): A set of additional search paths
 
+---
+-- Attempt to locate and return the path to a shared library.
+--
+-- This function does not work to locate system libraries on macOS 11 or later; it may still
+-- be used to locate user libraries: _"New in macOS Big Sur 11.0.1, the system ships with
+-- a built-in dynamic linker cache of all system-provided libraries. As part of this change,
+-- copies of dynamic libraries are no longer present on the filesystem. Code that attempts to
+-- check for dynamic library presence by looking for a file at a path or enumerating a directory
+-- will fail."
+-- https://developer.apple.com/documentation/macos-release-notes/macos-big-sur-11_0_1-release-notes
+--
+-- @param libname
+--    The library name with or without prefix and suffix.
+-- @param libdirs
+--    An array of paths to be searched.
+-- @returns
+--    The full path to the library if found; `nil` otherwise.
+---
+	function os.findlib(libname, libdirs)
 		local path = get_library_search_path()
 		local formats
 
@@ -116,7 +132,7 @@
 		elseif os.istarget("haiku") then
 			formats = { "lib%s.so", "%s.so" }
 		else
-			if os.istarget("macosx") then
+			if os.istarget("darwin") then
 				formats = { "lib%s.dylib", "%s.dylib" }
 			else
 				formats = { "lib%s.so", "%s.so" }
@@ -456,11 +472,29 @@
 --
 -- Run a shell command and return the output.
 --
+-- @param cmd Command to execute
+-- @param streams Standard stream(s) to output
+-- 		Must be one of
+--		- "both" (default)
+--		- "output" Return standard output stream content only
+--		- "error" Return standard error stream content only
+--
 
-	function os.outputof(cmd)
+	function os.outputof(cmd, streams)
 		cmd = path.normalize(cmd)
+		streams = streams or "both"
+		local redirection
+		if streams == "both" then
+			redirection = " 2>&1"
+		elseif streams == "output" then
+			redirection = " 2>/dev/null"
+		elseif streams == "error" then
+			redirection = " 2>&1 1>/dev/null"
+		else
+			error ('Invalid stream(s) selection. "output", "error", or "both" expected.')
+		end
 
-		local pipe = io.popen(cmd .. " 2>&1")
+		local pipe = io.popen(cmd .. redirection)
 		local result = pipe:read('*a')
 		local success, what, code = pipe:close()
 		if success then
@@ -497,43 +531,55 @@
 		if type(f) == "string" then
 			local p = os.matchfiles(f)
 			for _, v in pairs(p) do
-				local ok, err = builtin_remove(v)
+				local ok, err, code = builtin_remove(v)
 				if not ok then
-					return ok, err
+					return ok, err, code
 				end
+			end
+			if #p == 0 then
+				return nil, "Couldn't find any file matching: " .. f, 1
 			end
 		-- in case of table, match files for every table entry
 		elseif type(f) == "table" then
 			for _, v in pairs(f) do
-				local ok, err = os.remove(v)
+				local ok, err, code = os.remove(v)
 				if not ok then
-					return ok, err
+					return ok, err, code
 				end
 			end
 		end
+
+		return true
 	end
 
 
 --
 -- Remove a directory, along with any contained files or subdirectories.
 --
+-- @return true on success, false and an appropriate error message on error
 
 	local builtin_rmdir = os.rmdir
 	function os.rmdir(p)
 		-- recursively remove subdirectories
 		local dirs = os.matchdirs(p .. "/*")
 		for _, dname in ipairs(dirs) do
-			os.rmdir(dname)
+			local ok, err = os.rmdir(dname)
+			if not ok then
+				return ok, err
+			end
 		end
 
 		-- remove any files
 		local files = os.matchfiles(p .. "/*")
 		for _, fname in ipairs(files) do
-			os.remove(fname)
+			local ok, err = os.remove(fname)
+			if not ok then
+				return ok, err
+			end
 		end
 
 		-- remove this directory
-		builtin_rmdir(p)
+		return builtin_rmdir(p)
 	end
 
 
@@ -558,6 +604,12 @@
 				return "cd " .. path.normalize(v)
 			end,
 			copy = function(v)
+				return "cp -rf " .. path.normalize(v)
+			end,
+			copyfile = function(v)
+				return "cp -f " .. path.normalize(v)
+			end,
+			copydir = function(v)
 				return "cp -rf " .. path.normalize(v)
 			end,
 			delete = function(v)
@@ -593,6 +645,17 @@
 				src = string.match(src, '^.*%S')
 
 				return "IF EXIST " .. src .. "\\ (xcopy /Q /E /Y /I " .. v .. " > nul) ELSE (xcopy /Q /Y /I " .. v .. " > nul)"
+			end,
+			copyfile = function(v)
+				v = path.translate(path.normalize(v))
+				-- XCOPY doesn't have a switch to assume destination is a file when it doesn't exist.
+				-- A trailing * will suppress the prompt but requires the file extensions be the same length.
+				-- Just use COPY instead, it actually works.
+				return "copy /B /Y " .. v
+			end,
+			copydir = function(v)
+				v = path.translate(path.normalize(v))
+				return "xcopy /Q /E /Y /I " .. v
 			end,
 			delete = function(v)
 				return "del " .. path.translate(path.normalize(v))
@@ -679,7 +742,7 @@
 		local translateFunction = function(value)
 			local result = path.join(translatedBaseDir, value)
 			result = os.translateCommandAndPath(result, map)
-			if value:endswith('/') or value:endswith('\\') or -- if orginal path ends with a slash then ensure the same
+			if value:endswith('/') or value:endswith('\\') or -- if original path ends with a slash then ensure the same
 			   value:endswith('/"') or value:endswith('\\"') then
 				result = result .. '/'
 			end
@@ -734,9 +797,11 @@
 		["aix"]      = { "aix",     "posix" },
 		["bsd"]      = { "bsd",     "posix" },
 		["haiku"]    = { "haiku",   "posix" },
+		["ios"]      = { "ios",     "darwin", "posix", "mobile" },
 		["linux"]    = { "linux",   "posix" },
 		["macosx"]   = { "macosx",  "darwin", "posix" },
 		["solaris"]  = { "solaris", "posix" },
+		["uwp"]      = { "uwp", "windows" },
 		["windows"]  = { "windows", "win32" },
 	}
 

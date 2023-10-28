@@ -12,6 +12,7 @@
 	local config = p.config
 	local fileconfig = p.fileconfig
 	local tree = p.tree
+	local dotnetbase = p.vstudio.dotnetbase
 
 	local m = p.vstudio.vc2010
 
@@ -63,8 +64,12 @@
 
 	function m.project(prj)
 		local action = p.action.current()
-		p.push('<Project DefaultTargets="Build" ToolsVersion="%s" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">',
-			action.vstudio.toolsVersion)
+		if _ACTION >= "vs2019" then
+			p.push('<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">')
+		else
+			p.push('<Project DefaultTargets="Build" ToolsVersion="%s" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">',
+				   action.vstudio.toolsVersion)
+		end
 	end
 
 
@@ -103,7 +108,7 @@
 
 
 --
--- Write out the TargetFrameworkVersion property.
+-- Write out the TargetFramework property.
 --
 
 	function m.targetFramework(prj)
@@ -111,7 +116,11 @@
 		local tools = string.format(' ToolsVersion="%s"', action.vstudio.toolsVersion)
 
 		local framework = prj.dotnetframework or action.vstudio.targetFramework or "4.0"
-		p.w('<TargetFrameworkVersion>v%s</TargetFrameworkVersion>', framework)
+		if framework and dotnetbase.isNewFormatProject(prj) then
+			p.w('<TargetFramework>%s</TargetFramework>', framework)
+		else
+			p.w('<TargetFrameworkVersion>v%s</TargetFrameworkVersion>', framework)
+		end
 	end
 
 
@@ -127,13 +136,18 @@
 			m.keyword,
 			m.projectName,
 			m.preferredToolArchitecture,
-			m.targetPlatformVersionGlobal,
+			m.latestTargetPlatformVersion,
+			m.windowsTargetPlatformVersion,
+			m.fastUpToDateCheck,
+			m.toolsVersion,
+			m.appContainerApplication,
 		}
 	end
 
 	m.elements.globalsCondition = function(prj, cfg)
 		return {
-			m.targetPlatformVersionCondition,
+			m.windowsTargetPlatformVersion,
+			m.xpDeprecationWarning,
 		}
 	end
 
@@ -176,6 +190,7 @@
 			return {
 				m.configurationType,
 				m.platformToolset,
+				m.toolsVersion,
 			}
 		else
 			return {
@@ -186,6 +201,9 @@
 				m.clrSupport,
 				m.characterSet,
 				m.platformToolset,
+				m.enableUnityBuild,
+				m.sanitizers,
+				m.toolsVersion,
 				m.wholeProgramOptimization,
 				m.nmakeOutDirs,
 				m.windowsSDKDesktopARMSupport,
@@ -233,6 +251,7 @@
 				m.generateManifest,
 				m.extensionsToDeleteOnClean,
 				m.executablePath,
+				m.allModulesPublic,
 			}
 		end
 	end
@@ -253,12 +272,16 @@
 
 	m.elements.nmakeProperties = function(cfg)
 		return {
+			m.executablePath,
+			m.includePath,
+			m.libraryPath,
 			m.nmakeOutput,
 			m.nmakeBuildCommands,
 			m.nmakeRebuildCommands,
 			m.nmakeCleanCommands,
 			m.nmakePreprocessorDefinitions,
-			m.nmakeIncludeDirs
+			m.nmakeIncludeDirs,
+			m.additionalCompileOptions
 		}
 	end
 
@@ -300,6 +323,7 @@
 		else
 			return {
 				m.clCompile,
+				m.buildStep,
 				m.fxCompile,
 				m.resourceCompile,
 				m.linker,
@@ -354,6 +378,8 @@
 			m.optimization,
 			m.functionLevelLinking,
 			m.intrinsicFunctions,
+			m.justMyCodeDebugging,
+			m.supportOpenMP,
 			m.minimalRebuild,
 			m.omitFramePointers,
 			m.stringPooling,
@@ -372,7 +398,16 @@
 			m.compileAs,
 			m.callingConvention,
 			m.languageStandard,
+			m.languageStandardC,
+			m.conformanceMode,
 			m.structMemberAlignment,
+			m.useFullPaths,
+			m.removeUnreferencedCodeData,
+			m.compileAsWinRT,
+			m.externalWarningLevel,
+			m.externalAngleBrackets,
+			m.scanSourceForModuleDependencies,
+			m.useStandardPreprocessor,
 		}
 
 		if cfg.kind == p.STATICLIB then
@@ -388,6 +423,31 @@
 		p.pop('</ClCompile>')
 	end
 
+--
+-- Write the the <CustomBuildStep> compiler settings block.
+--
+
+	m.elements.buildStep = function(cfg)
+		local calls = {
+			m.buildCommands,
+			m.buildMessage,
+			m.buildOutputs,
+			m.buildInputs
+		}
+
+		return calls
+	end
+
+	function m.buildStep(cfg)
+		if #cfg.buildcommands > 0 or #cfg.buildoutputs > 0 or #cfg.buildinputs > 0 or cfg.buildmessage then
+
+			p.push('<CustomBuildStep>')
+			p.callArray(m.elements.buildStep, cfg)
+			p.pop('</CustomBuildStep>')
+
+		end
+	end
+
 
 --
 -- Write the <FxCompile> settings block.
@@ -396,6 +456,7 @@
 	m.elements.fxCompile = function(cfg)
 		return {
 			m.fxCompilePreprocessorDefinition,
+			m.fxCompileAdditionalIncludeDirs,
 			m.fxCompileShaderType,
 			m.fxCompileShaderModel,
 			m.fxCompileShaderEntry,
@@ -499,6 +560,7 @@
 				m.targetMachine,
 				m.additionalLinkOptions,
 				m.programDatabaseFile,
+				m.assemblyDebug,
 			}
 		end
 	end
@@ -605,6 +667,37 @@
 
 
 ---
+-- Transform property to string
+---
+
+	function m.getRulePropertyString(rule, prop, value, kind)
+		-- list of paths
+		if kind == "list:path" then
+			return table.concat(vstudio.path(cfg, value), ';')
+		end
+
+		-- path
+		if kind == "path" then
+			return vstudio.path(cfg, value)
+		end
+
+		-- list
+		if type(value) == "table" then
+			return table.concat(value, ";")
+		end
+
+		-- enum
+		if prop.values then
+			value = table.findKeyByValue(prop.values, value)
+		end
+
+		-- primitive
+		return tostring(value)
+	end
+
+
+
+---
 -- Write out project-level custom rule variables.
 ---
 
@@ -618,13 +711,7 @@
 					local fld = p.rule.getPropertyField(rule, prop)
 					local value = cfg[fld.name]
 					if value ~= nil then
-						if fld.kind == "list:path" then
-							value = table.concat(vstudio.path(cfg, value), ';')
-						elseif fld.kind == "path" then
-							value = vstudio.path(cfg, value)
-						else
-							value = p.rule.getPropertyString(rule, prop, value)
-						end
+						value = m.getRulePropertyString(rule, prop, value, fld.kind)
 
 						if value ~= nil and #value > 0 then
 							m.element(prop.name, nil, '%s', value)
@@ -719,7 +806,7 @@
 ---
 	m.categories.ClCompile = {
 		name       = "ClCompile",
-		extensions = { ".cc", ".cpp", ".cxx", ".c", ".s", ".m", ".mm" },
+		extensions = { ".cc", ".cpp", ".cxx", ".c++", ".c", ".s", ".m", ".mm", ".cppm", ".ixx" },
 		priority   = 2,
 
 		emitFiles = function(prj, group)
@@ -743,6 +830,9 @@
 						m.compileAs,
 						m.runtimeTypeInfo,
 						m.warningLevelFile,
+						m.compileAsWinRT,
+						m.externalWarningLevelFile,
+						m.externalAngleBrackets,
 					}
 				else
 					return {
@@ -774,6 +864,7 @@
 					return {
 						m.excludedFromBuild,
 						m.fxCompilePreprocessorDefinition,
+						m.fxCompileAdditionalIncludeDirs,
 						m.fxCompileShaderType,
 						m.fxCompileShaderModel,
 						m.fxCompileShaderEntry,
@@ -830,9 +921,7 @@
 				m.excludedFromBuild
 			}
 
-			m.emitFiles(prj, group, "ResourceCompile", nil, fileCfgFunc, function(cfg)
-				return cfg.system == p.WINDOWS
-			end)
+			m.emitFiles(prj, group, "ResourceCompile", nil, fileCfgFunc)
 		end,
 
 		emitFilter = function(prj, group)
@@ -976,6 +1065,54 @@
 		end
 	}
 
+
+---
+-- AppxManifest group
+---
+	m.categories.AppxManifest = {
+		name       = "AppxManifest",
+		extensions = { ".appxmanifest" },
+		priority   = 12,
+
+		emitFiles = function(prj, group)
+			local fileFunc = {
+				m.fileType,
+				m.subType,
+			}
+
+			local fileCfgFunc = {
+				m.excludedFromBuild,
+			}
+
+			m.emitFiles(prj, group, "AppxManifest", fileFunc, fileCfgFunc)
+		end,
+
+		emitFilter = function(prj, group)
+			m.filterGroup(prj, group, "AppxManifest")
+		end
+	}
+
+---
+-- Copy group
+---
+
+	m.categories.Copy = {
+		name = "Copy",
+		priority = 13,
+
+		emitFiles = function(prj, group)
+			local fileCfgFunc = {
+				m.excludedFromBuild,
+				m.destinationFolders
+			}
+
+			m.emitFiles(prj, group, "CopyFileToFolders", nil, fileCfgFunc)
+		end,
+
+		emitFilter = function(prj, group)
+			m.filterGroup(prj, group, "CopyFileToFolders")
+		end
+	}
 
 ---
 -- Categorize files into groups.
@@ -1178,6 +1315,12 @@
 				end)
 
 				local rel = path.translate(file.relpath)
+
+				-- SharedItems projects paths are prefixed with a magical variable
+				if prj.kind == p.SHAREDITEMS then
+					rel = "$(MSBuildThisFileDirectory)" .. rel
+				end
+
 				if #contents > 0 then
 					p.push('<%s Include="%s">', tag, rel)
 					p.outln(contents)
@@ -1207,7 +1350,7 @@
 						for cfg in project.eachconfig(prj) do
 							local fcfg = fileconfig.getconfig(file, cfg)
 							if fcfg and fcfg[fld.name] then
-								local value = p.rule.getPropertyString(rule, prop, fcfg[fld.name])
+								local value = m.getRulePropertyString(rule, prop, fcfg[fld.name])
 								if value and #value > 0 then
 									m.element(prop.name, m.configPair(cfg), '%s', value)
 								end
@@ -1279,14 +1422,39 @@
 
 	function m.projectReferences(prj)
 		local refs = project.getdependencies(prj, 'linkOnly')
-		if #refs > 0 then
-			p.push('<ItemGroup>')
+		-- Handle linked shared items projects
+		local contents = p.capture(function()
+			p.push()
 			for _, ref in ipairs(refs) do
-				local relpath = vstudio.path(prj, vstudio.projectfile(ref))
-				p.push('<ProjectReference Include=\"%s\">', relpath)
-				p.callArray(m.elements.projectReferences, prj, ref)
-				p.pop('</ProjectReference>')
+				if ref.kind == p.SHAREDITEMS then
+					local relpath = vstudio.path(prj, vstudio.projectfile(ref))
+					p.x('<Import Project="%s" Label="Shared" />', relpath)
+				end
 			end
+			p.pop()
+		end)
+		if #contents > 0 then
+			p.push('<ImportGroup Label="Shared">')
+			p.outln(contents)
+			p.pop('</ImportGroup>')
+		end
+
+		-- Handle all other linked projects
+		local contents = p.capture(function()
+			p.push()
+			for _, ref in ipairs(refs) do
+				if ref.kind ~= p.SHAREDITEMS then
+					local relpath = vstudio.path(prj, vstudio.projectfile(ref))
+					p.push('<ProjectReference Include=\"%s\">', relpath)
+					p.callArray(m.elements.projectReferences, prj, ref)
+					p.pop('</ProjectReference>')
+				end
+			end
+			p.pop()
+		end)
+		if #contents > 0 then
+			p.push('<ItemGroup>')
+			p.outln(contents)
 			p.pop('</ItemGroup>')
 		end
 	end
@@ -1305,15 +1473,24 @@
 		-- check to see if this project uses an external toolset. If so, let the
 		-- toolset define the format of the links
 		local toolset = config.toolset(cfg)
-		if toolset then
+		if cfg.system ~= premake.WINDOWS and toolset then
 			links = toolset.getlinks(cfg, not explicit)
 		else
 			links = vstudio.getLinks(cfg, explicit)
 		end
 
-		if #links > 0 then
-			links = path.translate(table.concat(links, ";"))
-			m.element("AdditionalDependencies", nil, "%s;%%(AdditionalDependencies)", links)
+		links = path.translate(table.concat(links, ";"))
+
+		local additional = ";%(AdditionalDependencies)"
+		if cfg.inheritdependencies ~= nil then
+			if not cfg.inheritdependencies then
+				additional = ""
+			end
+		end
+
+		-- If there are no links and dependencies should be inherited, the tag doesn't have to be generated.
+		if #links > 0 or additional == "" then
+			m.element("AdditionalDependencies", nil, "%s%s", links, additional)
 		end
 	end
 
@@ -1374,8 +1551,38 @@
 				m.element("LanguageStandard", nil, 'stdcpp14')
 			elseif (cfg.cppdialect == "C++17") then
 				m.element("LanguageStandard", nil, 'stdcpp17')
+			elseif (cfg.cppdialect == "C++20") then
+				m.element("LanguageStandard", nil, iif(_ACTION == "vs2017", 'stdcpplatest', 'stdcpp20'))
 			elseif (cfg.cppdialect == "C++latest") then
 				m.element("LanguageStandard", nil, 'stdcpplatest')
+			end
+		end
+	end
+
+
+	function m.languageStandardC(cfg)
+		if _ACTION >= "vs2019" then
+			if (cfg.cdialect == "C11") then
+				m.element("LanguageStandard_C", nil, 'stdc11')
+			elseif (cfg.cdialect == "C17") then
+				m.element("LanguageStandard_C", nil, 'stdc17')
+			end
+		end
+	end
+
+
+	function m.conformanceMode(cfg)
+		if _ACTION >= "vs2017" then
+			if cfg.conformancemode ~= nil then
+				m.element("ConformanceMode", nil, iif(cfg.conformancemode, "true", "false"))
+			end
+		end
+	end
+
+	function m.allModulesPublic(cfg)
+		if _ACTION >= "vs2019" then
+			if cfg.allmodulespublic ~= nil then
+				m.element("AllProjectBMIsArePublic", nil, iif(cfg.allmodulespublic, "true", "false"))
 			end
 		end
 	end
@@ -1395,12 +1602,42 @@
 		end
 	end
 
+	function m.useFullPaths(cfg)
+		if cfg.useFullPaths ~= nil then
+			if cfg.useFullPaths then
+				m.element("UseFullPaths", nil, "true")
+			else
+				m.element("UseFullPaths", nil, "false")
+			end
+		end
+	end
+
+	function m.removeUnreferencedCodeData(cfg)
+		if cfg.removeUnreferencedCodeData ~= nil then
+			if cfg.removeUnreferencedCodeData then
+				m.element("RemoveUnreferencedCodeData", nil, "true")
+			else
+				m.element("RemoveUnreferencedCodeData", nil, "false")
+			end
+		end
+	end
+
+	function m.compileAsWinRT(cfg, condition)
+		if _ACTION >= "vs2019" then
+			if cfg and cfg.consumewinrtextension ~= nil then
+				m.element("CompileAsWinRT", condition, iif(cfg.consumewinrtextension, "true", "false"))
+			end
+		end
+	end
+
 	function m.additionalCompileOptions(cfg, condition)
 		local opts = cfg.buildoptions
-		if _ACTION == "vs2015" then
+		if _ACTION == "vs2015" or vstudio.isMakefile(cfg) then
 			if (cfg.cppdialect == "C++14") then
 				table.insert(opts, "/std:c++14")
 			elseif (cfg.cppdialect == "C++17") then
+				table.insert(opts, "/std:c++17")
+			elseif (cfg.cppdialect == "C++20") then
 				table.insert(opts, "/std:c++latest")
 			elseif (cfg.cppdialect == "C++latest") then
 				table.insert(opts, "/std:c++latest")
@@ -1410,6 +1647,13 @@
 		if cfg.toolset and cfg.toolset:startswith("msc") then
 			local value = iif(cfg.unsignedchar, "On", "Off")
 			table.insert(opts, p.tools.msc.shared.unsignedchar[value])
+		elseif _ACTION >= "vs2019" and cfg.toolset and cfg.toolset == "clang" then
+			local value = iif(cfg.unsignedchar, "On", "Off")
+			table.insert(opts, p.tools.msc.shared.unsignedchar[value])
+			-- <OpenMPSupport>true</OpenMPSupport> is unfortunately ignored with clang toolset
+			if cfg.openmp == "On" then
+				table.insert(opts, 1, '/openmp')
+			end
 		end
 
 		if #opts > 0 then
@@ -1423,6 +1667,13 @@
 		if #cfg.linkoptions > 0 then
 			local opts = table.concat(cfg.linkoptions, " ")
 			m.element("AdditionalOptions", nil, "%s %%(AdditionalOptions)", opts)
+		end
+	end
+
+
+	function m.appContainerApplication(prj)
+		if prj.system == p.UWP then
+			m.element("AppContainerApplication", nil, "true")
 		end
 	end
 
@@ -1448,6 +1699,12 @@
 		end
 	end
 
+	function m.buildInputs(cfg, condition)
+		if cfg.buildinputs and #cfg.buildinputs > 0 then
+			local inputs = project.getrelative(cfg.project, cfg.buildinputs)
+			m.element("Inputs", condition, '%s', table.concat(inputs, ";"))
+		end
+	end
 
 	function m.buildAdditionalInputs(fcfg, condition)
 		if fcfg.buildinputs and #fcfg.buildinputs > 0 then
@@ -1458,9 +1715,10 @@
 
 
 	function m.buildCommands(fcfg, condition)
-		local commands = os.translateCommandsAndPaths(fcfg.buildcommands, fcfg.project.basedir, fcfg.project.location)
-		commands = table.concat(commands,'\r\n')
-		m.element("Command", condition, '%s', commands)
+		if #fcfg.buildcommands > 0 then
+			local commands = os.translateCommandsAndPaths(fcfg.buildcommands, fcfg.project.basedir, fcfg.project.location)
+			m.element("Command", condition, '%s', table.concat(commands,'\r\n'))
+		end
 	end
 
 
@@ -1481,8 +1739,10 @@
 
 
 	function m.buildOutputs(fcfg, condition)
-		local outputs = project.getrelative(fcfg.project, fcfg.buildoutputs)
-		m.element("Outputs", condition, '%s', table.concat(outputs, ";"))
+		if #fcfg.buildoutputs > 0 then
+			local outputs = project.getrelative(fcfg.project, fcfg.buildoutputs)
+			m.element("Outputs", condition, '%s', table.concat(outputs, ";"))
+		end
 	end
 
 
@@ -1553,6 +1813,12 @@
 			m.element("CompileAs", condition, "CompileAsC")
 		elseif p.languages.iscpp(cfg.compileas) then
 			m.element("CompileAs", condition, "CompileAsCpp")
+		elseif cfg.compileas == "Module" then
+			m.element("CompileAs", condition, "CompileAsCppModule")
+		elseif cfg.compileas == "ModulePartition" then
+			m.element("CompileAs", condition, "CompileAsCppModuleInternalPartition")
+		elseif cfg.compileas == "HeaderUnit" then
+			m.element("CompileAs", condition, "CompileAsHeaderUnit")
 		end
 	end
 
@@ -1610,6 +1876,13 @@
 	end
 
 
+	function m.destinationFolders(filecfg, condition)
+		if filecfg then
+			m.element("DestinationFolders", condition, vstudio.path(filecfg.config, filecfg.config.buildtarget.directory))
+		end
+	end
+
+
 	function m.enableDpiAwareness(cfg)
 		local awareness = {
 			None = "false",
@@ -1632,7 +1905,7 @@
 		elseif x == "AVX2" and _ACTION > "vs2012" then
 			v = "AdvancedVectorExtensions2"
 		elseif cfg.architecture ~= "x86_64" then
-			if x == "SSE2" or x == "SSE3" or x == "SSSE3" or x == "SSE4.1" then
+			if x == "SSE2" or x == "SSE3" or x == "SSSE3" or x == "SSE4.1" or x == "SSE4.2" then
 				v = "StreamingSIMDExtensions2"
 			elseif x == "SSE" then
 				v = "StreamingSIMDExtensions"
@@ -1693,6 +1966,11 @@
 	end
 
 
+	function m.subType(cfg, file)
+		m.element("SubType", nil, "Designer")
+	end
+
+
 	function m.floatingPointModel(cfg)
 		if cfg.floatingpoint and cfg.floatingpoint ~= "Default" then
 			m.element("FloatingPointModel", nil, cfg.floatingpoint)
@@ -1743,6 +2021,12 @@
 	function m.fullProgramDatabaseFile(cfg)
 		if _ACTION >= "vs2015" and cfg.symbols == "FastLink" then
 			m.element("FullProgramDatabaseFile", nil, "true")
+		end
+	end
+
+	function m.assemblyDebug(cfg)
+		if cfg.assemblydebug then
+      		m.element("AssemblyDebug", nil, "true")
 		end
 	end
 
@@ -1828,8 +2112,12 @@
 
 
 	function m.ignoreImportLibrary(cfg)
-		if cfg.kind == p.SHAREDLIB and cfg.flags.NoImportLib then
-			m.element("IgnoreImportLibrary", nil, "true")
+		if cfg.kind == p.SHAREDLIB then
+			if cfg.flags.NoImportLib then
+				m.element("IgnoreImportLibrary", nil, "true")
+			elseif cfg.system == p.UWP then
+				m.element("IgnoreImportLibrary", nil, "false")
+			end
 		end
 	end
 
@@ -1870,16 +2158,28 @@
 		end
 	end
 
-	local function nuGetTargetsFile(prj, package)
+	local function nuGetTargetsFile(prj, package, extension)
 		local packageAPIInfo = vstudio.nuget2010.packageAPIInfo(prj, package)
-		return p.vstudio.path(prj, p.filename(prj.workspace, string.format("packages\\%s.%s\\build\\native\\%s.targets", vstudio.nuget2010.packageId(package), packageAPIInfo.verbatimVersion or packageAPIInfo.version, vstudio.nuget2010.packageId(package))))
+		if not packageAPIInfo.packageEntries then
+			return nil
+		end
+		for _, entry in ipairs(packageAPIInfo.packageEntries) do
+			if path.getextension(entry) == extension then
+				local packageRootPath = p.filename(prj.workspace, string.format("packages\\%s.%s\\", vstudio.nuget2010.packageId(package), packageAPIInfo.verbatimVersion or packageAPIInfo.version))
+				return p.vstudio.path(prj, path.join(packageRootPath, entry))
+			end
+		end
+
+		return nil
 	end
 
 	function m.importNuGetTargets(prj)
 		if not vstudio.nuget2010.supportsPackageReferences(prj) then
 			for i = 1, #prj.nuget do
-				local targetsFile = nuGetTargetsFile(prj, prj.nuget[i])
-				p.x('<Import Project="%s" Condition="Exists(\'%s\')" />', targetsFile, targetsFile)
+				local targetsFile = nuGetTargetsFile(prj, prj.nuget[i], ".targets")
+				if targetsFile then
+					p.x('<Import Project="%s" Condition="Exists(\'%s\')" />', targetsFile, targetsFile)
+				end
 			end
 		end
 	end
@@ -1900,8 +2200,14 @@
 			p.pop('</PropertyGroup>')
 
 			for i = 1, #prj.nuget do
-				local targetsFile = nuGetTargetsFile(prj, prj.nuget[i])
-				p.x('<Error Condition="!Exists(\'%s\')" Text="$([System.String]::Format(\'$(ErrorText)\', \'%s\'))" />', targetsFile, targetsFile)
+				local propsFile = nuGetTargetsFile(prj, prj.nuget[i], ".props")
+				if propsFile then
+					p.x('<Error Condition="!Exists(\'%s\')" Text="$([System.String]::Format(\'$(ErrorText)\', \'%s\'))" />', propsFile, propsFile)
+				end
+				local targetsFile = nuGetTargetsFile(prj, prj.nuget[i], ".targets")
+				if targetsFile then
+					p.x('<Error Condition="!Exists(\'%s\')" Text="$([System.String]::Format(\'$(ErrorText)\', \'%s\'))" />', targetsFile, targetsFile)
+				end
 			end
 			p.pop('</Target>')
 		end
@@ -1923,6 +2229,7 @@
 		return {
 			m.importGroupSettings,
 			m.importRuleSettings,
+			m.importNuGetProps,
 			m.importBuildCustomizationsProps
 		}
 	end
@@ -1952,6 +2259,17 @@
 		end
 	end
 
+	function m.importNuGetProps(prj)
+		if not vstudio.nuget2010.supportsPackageReferences(prj) then
+			for i = 1, #prj.nuget do
+				local propsFile = nuGetTargetsFile(prj, prj.nuget[i], ".props")
+				if propsFile then
+					p.x('<Import Project="%s" Condition="Exists(\'%s\')" />', propsFile, propsFile)
+				end
+			end
+		end
+	end
+
 
 	function m.importBuildCustomizationsProps(prj)
 		for i, build in ipairs(prj.buildcustomizations) do
@@ -1969,9 +2287,14 @@
 
 
 	function m.includePath(cfg)
-		local dirs = vstudio.path(cfg, cfg.sysincludedirs)
+		local externaldirs = table.join(cfg.externalincludedirs, cfg.includedirsafter)
+		local dirs = vstudio.path(cfg, externaldirs)
 		if #dirs > 0 then
-			m.element("IncludePath", nil, "%s;$(IncludePath)", table.concat(dirs, ";"))
+			if _ACTION < "vs2019" then
+				m.element("IncludePath", nil, "%s;$(IncludePath)", table.concat(dirs, ";"))
+			else
+				m.element("ExternalIncludePath", nil, "%s;$(ExternalIncludePath)", table.concat(dirs, ";"))
+			end
 		end
 	end
 
@@ -1994,6 +2317,25 @@
 		end
 	end
 
+	function m.justMyCodeDebugging(cfg)
+		if _ACTION >= "vs2017" then
+			local jmc = cfg.justmycode
+
+			if jmc == "On" then
+				m.element("SupportJustMyCode", nil, "true")
+			elseif jmc == "Off" then
+				m.element("SupportJustMyCode", nil, "false")
+			end
+		end
+	end
+
+	function m.supportOpenMP(cfg)
+		if cfg.openmp == "On" then
+			m.element("OpenMPSupport", nil, "true")
+		elseif cfg.openmp == "Off" then
+			m.element("OpenMPSupport", nil, "false")
+		end
+	end
 
 	function m.keyword(prj)
 		-- try to determine what kind of targets we're building here
@@ -2218,12 +2560,26 @@
 	end
 
 
+	function m.toolsVersion(cfg)
+		local version = cfg.toolsversion
+		if _ACTION >= "vs2017" and version then
+			m.element("VCToolsVersion", nil, version)
+		end
+	end
+
+
 	function m.platformToolset(cfg)
 		local tool, version = p.config.toolset(cfg)
+
+		if not version and _ACTION >= "vs2019" and cfg.toolset == "clang" then
+			version = "ClangCL"
+		end
+
 		if not version then
 			local value = p.action.current().toolset
 			tool, version = p.tools.canonical(value)
 		end
+
 		if version then
 			if cfg.kind == p.NONE or cfg.kind == p.MAKEFILE then
 				if p.config.hasFile(cfg, path.iscppfile) or _ACTION >= "vs2015" then
@@ -2235,9 +2591,31 @@
 		end
 	end
 
+	function m.enableUnityBuild(cfg)
+		if _ACTION >= "vs2017" and cfg.enableunitybuild then
+			m.element("EnableUnitySupport", nil, iif(cfg.enableunitybuild == "On", "true", "false"))
+		end
+	end
+
+	function m.sanitizers(cfg)
+		if _ACTION >= "vs2019" and cfg.sanitize then
+			if table.contains(cfg.sanitize, "Address") then
+				m.element("EnableASAN", nil, "true")
+			end
+		end
+		if _ACTION >= "vs2022" and cfg.sanitize then
+			if table.contains(cfg.sanitize, "Fuzzer") then
+				m.element("EnableFuzzer", nil, "true")
+			end
+		end
+	end
+
+	function m.precompiledHeaderFile(fileName, cfg)
+		m.element("PrecompiledHeaderFile", nil, "%s", fileName)
+	end
 
 	function m.precompiledHeader(cfg, condition)
-		prjcfg, filecfg = p.config.normalize(cfg)
+		local prjcfg, filecfg = p.config.normalize(cfg)
 		if filecfg then
 			if prjcfg.pchsource == filecfg.abspath and not prjcfg.flags.NoPCH then
 				m.element('PrecompiledHeader', condition, 'Create')
@@ -2247,7 +2625,7 @@
 		else
 			if not prjcfg.flags.NoPCH and prjcfg.pchheader then
 				m.element("PrecompiledHeader", nil, "Use")
-				m.element("PrecompiledHeaderFile", nil, "%s", prjcfg.pchheader)
+				m.precompiledHeaderFile(prjcfg.pchheader, prjcfg)
 			else
 				m.element("PrecompiledHeader", nil, "NotUsing")
 			end
@@ -2301,6 +2679,7 @@
 			m.element("ProgramDataBaseFileName", nil, value)
 		end
 	end
+
 
 	function m.projectGuid(prj)
 		m.element("ProjectGuid", nil, "{%s}", prj.uuid)
@@ -2374,7 +2753,8 @@
 
 
 	function m.resourceAdditionalIncludeDirectories(cfg)
-		m.additionalIncludeDirectories(cfg, table.join(cfg.includedirs, cfg.resincludedirs))
+		local dirs = table.join(cfg.includedirs, cfg.resincludedirs)
+		m.additionalIncludeDirectories(cfg, dirs)
 	end
 
 
@@ -2472,37 +2852,65 @@
 	end
 
 
-	function m.targetPlatformVersion(cfgOrPrj)
+	function m.latestTargetPlatformVersion(prj)
+		-- See https://developercommunity.visualstudio.com/content/problem/140294/windowstargetplatformversion-makes-it-impossible-t.html
+		if _ACTION == "vs2017" then
+			m.element("LatestTargetPlatformVersion", nil, "$([Microsoft.Build.Utilities.ToolLocationHelper]::GetLatestSDKTargetPlatformVersion('Windows', '10.0'))")
+		end
+	end
 
-		if _ACTION >= "vs2015" then
-			local min = project.systemversion(cfgOrPrj)
-			-- handle special "latest" version
-			if min == "latest" then
-				-- vs2015 and lower can't build against SDK 10
-				min = iif(_ACTION >= "vs2017", m.latestSDK10Version(), nil)
+
+	function m.windowsTargetPlatformVersion(prj, cfg)
+		if _ACTION < "vs2015" then
+			return
+		end
+
+		local target = cfg or prj
+		local minversion, maxversion = project.systemversion(target)
+
+		-- if this is a config, only emit if different from project
+		if cfg then
+			local prjMinVersion, prjMaxVersion = project.systemversion(prj)
+			if not prjMinVersion or (minversion == prjMinVersion and maxversion == prjMaxVersion) then
+				return
 			end
-
-			return min
 		end
 
+		-- See https://developercommunity.visualstudio.com/content/problem/140294/windowstargetplatformversion-makes-it-impossible-t.html
+		if minversion == "latest" then
+			if _ACTION == "vs2015" then
+				minversion = nil   -- SDK v10 is not supported by VS2015
+			elseif _ACTION == "vs2017" then
+				minversion = "$(LatestTargetPlatformVersion)"
+			else
+				minversion = "10.0"
+			end
+		end
+
+		-- Max version is only supported in UWP projects
+		if maxversion == "latest" then
+			maxversion = "10.0"
+		end
+
+		if maxversion and target.system == p.UWP then
+			m.element("WindowsTargetPlatformMinVersion", nil, minversion)
+			m.element("WindowsTargetPlatformVersion", nil, maxversion)
+		elseif minversion then
+			m.element("WindowsTargetPlatformVersion", nil, minversion)
+		end
 	end
 
 
-	function m.targetPlatformVersionGlobal(prj)
-		local min = m.targetPlatformVersion(prj)
-		if min ~= nil then
-			m.element("WindowsTargetPlatformVersion", nil, min)
+	function m.xpDeprecationWarning(prj, cfg)
+		if cfg.toolset == "msc-v141_xp" then
+			m.element("XPDeprecationWarning", nil, "false")
 		end
 	end
 
 
-	function m.targetPlatformVersionCondition(prj, cfg)
-
-		local cfgPlatformVersion = m.targetPlatformVersion(cfg)
-		local prjPlatformVersion = m.targetPlatformVersion(prj)
-
-		if cfgPlatformVersion ~= nil and cfgPlatformVersion ~= prjPlatformVersion then
-		    m.element("WindowsTargetPlatformVersion", nil, cfgPlatformVersion)
+	function m.fastUpToDateCheck(prj)
+		if prj.fastuptodate ~= nil then
+			m.element("DisableFastUpToDateCheck", nil, iif(prj.fastuptodate, "false", "true"))
 		end
 	end
 
@@ -2590,15 +2998,67 @@
 
 
 	function m.warningLevel(cfg)
-		local map = { Off = "TurnOffAllWarnings", Extra = "Level4" }
+		local map = { Off = "TurnOffAllWarnings", High = "Level4", Extra = "Level4", Everything = "EnableAllWarnings" }
 		m.element("WarningLevel", nil, map[cfg.warnings] or "Level3")
 	end
 
 
 	function m.warningLevelFile(cfg, condition)
-		local map = { Off = "TurnOffAllWarnings", Extra = "Level4" }
+		local map = { Off = "TurnOffAllWarnings", High = "Level4", Extra = "Level4", Everything = "EnableAllWarnings" }
 		if cfg.warnings then
 			m.element("WarningLevel", condition, map[cfg.warnings] or "Level3")
+		end
+	end
+
+
+	function m.externalWarningLevel(cfg)
+		if _ACTION >= "vs2019" then
+			local map = { Off = "TurnOffAllWarnings", High = "Level4", Extra = "Level4", Everything = "Level4" }
+			m.element("ExternalWarningLevel", nil, map[cfg.externalwarnings] or "Level3")
+		end
+	end
+
+
+	function m.externalWarningLevelFile(cfg, condition)
+		if _ACTION >= "vs2019" then
+			if cfg.externalwarnings then
+				local map = { Off = "TurnOffAllWarnings", High = "Level4", Extra = "Level4", Everything = "Level4" }
+				m.element("ExternalWarningLevel", condition, map[cfg.externalwarnings] or "Level3")
+			end
+		end
+	end
+
+
+	function m.externalAngleBrackets(cfg, condition)
+		if _ACTION >= "vs2019" then
+			if cfg.externalanglebrackets == p.OFF then
+				m.element("TreatAngleIncludeAsExternal", condition, "false")
+			elseif cfg.externalanglebrackets == p.ON then
+				m.element("TreatAngleIncludeAsExternal", condition, "true")
+			end
+		end
+	end
+
+
+	function m.scanSourceForModuleDependencies(cfg)
+		if _ACTION >= "vs2019" then
+			if cfg.scanformoduledependencies ~= nil then
+				if cfg.scanformoduledependencies then
+					m.element("ScanSourceForModuleDependencies", nil, "true")
+				else
+					m.element("ScanSourceForModuleDependencies", nil, "false")
+				end
+			end
+		end
+	end
+
+	function m.useStandardPreprocessor(cfg)
+		if _ACTION >= "vs2019" and cfg.usestandardpreprocessor ~= nil then
+			if cfg.usestandardpreprocessor == 'On' then
+				m.element("UseStandardPreprocessor", nil, "true")
+			else
+				m.element("UseStandardPreprocessor", nil, "false")
+			end
 		end
 	end
 
@@ -2620,6 +3080,12 @@
 		end
 	end
 
+	function m.fxCompileAdditionalIncludeDirs(cfg, condition)
+		if cfg.shaderincludedirs and #cfg.shaderincludedirs > 0 then
+			local dirs = vstudio.path(cfg, cfg.shaderincludedirs)
+			m.element('AdditionalIncludeDirectories', condition, "%s;%%(AdditionalIncludeDirectories)", table.concat(dirs, ";"))
+		end
+	end
 
 	function m.fxCompileShaderType(cfg, condition)
 		if cfg.shadertype then
@@ -2702,20 +3168,6 @@
 
 	function m.condition(cfg)
 		return m.conditionFromConfigText(vstudio.projectConfig(cfg))
-	end
-
---
--- Get the latest installed SDK 10 version from the registry.
---
-
-	function m.latestSDK10Version()
-		local arch = iif(os.is64bit(), "\\WOW6432Node\\", "\\")
-		local version = os.getWindowsRegistry("HKLM:SOFTWARE" .. arch .."Microsoft\\Microsoft SDKs\\Windows\\v10.0\\ProductVersion")
-		if version ~= nil then
-			return version .. ".0"
-		else
-			return nil
-		end
 	end
 
 

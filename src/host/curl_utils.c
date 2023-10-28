@@ -1,4 +1,4 @@
-﻿/**
+/**
 * \file   curl_utils.c
 * \brief  curl utilities for the http library.
 * \author Copyright (c) 2017 Tom van Dijck, João Matos and the Premake project
@@ -35,7 +35,7 @@ int curlProgressCallback(curl_state* state, double dltotal, double dlnow, double
 size_t curlWriteCallback(char *ptr, size_t size, size_t nmemb, curl_state* state)
 {
 	size_t length = size * nmemb;
-	buffer_puts(&state->S, ptr, length);
+	premake_buffer_puts(&state->S, ptr, length);
 	return length;
 }
 
@@ -74,7 +74,7 @@ CURL* curlRequest(lua_State* L, curl_state* state, int optionsIndex, int progres
 	state->RefIndex = 0;
 	state->errorBuffer[0] = '\0';
 	state->headers = NULL;
-	buffer_init(&state->S);
+	premake_buffer_init(&state->S);
 
 	curl_init();
 	curl = curl_easy_init();

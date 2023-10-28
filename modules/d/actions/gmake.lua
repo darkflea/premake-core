@@ -48,7 +48,7 @@
 
 
 --
--- Override the GMake action 'onProject' funtion to provide
+-- Override the GMake action 'onProject' function to provide
 -- D knowledge...
 --
 	p.override( gmake, "onProject", function(oldfn, prj)
@@ -205,7 +205,7 @@
 			-- identify the toolset used by this configurations (would be nicer if
 			-- this were computed and stored with the configuration up front)
 
-			local toolset = p.tools[_OPTIONS.dc or cfg.toolset or "dmd"]
+			local toolset = m.make.getToolset(cfg)
 			if not toolset then
 				error("Invalid toolset '" + (_OPTIONS.dc or cfg.toolset) + "'")
 			end
@@ -215,6 +215,14 @@
 			_p('endif')
 			_p('')
 		end
+	end
+
+	function m.make.getToolset(cfg)
+		local toolset, err = p.api.checkValue(p.fields.toolset, _OPTIONS.dc or cfg.toolset or "dmd")
+		if err then
+			error { msg=err }
+		end
+		return p.tools[toolset]
 	end
 
 	function m.make.dTools(cfg, toolset)

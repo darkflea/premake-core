@@ -48,9 +48,9 @@
 		local bundlename = ""
 		local bundlepath = ""
 
-		if cfg.system == p.MACOSX and kind == p.WINDOWEDAPP then
+		if table.contains(os.getSystemTags(cfg.system), "darwin") and (kind == p.WINDOWEDAPP or (kind == p.SHAREDLIB and cfg.sharedlibtype)) then
 			bundlename = basename .. extension
-			bundlepath = path.join(bundlename, "Contents/MacOS")
+			bundlepath = path.join(bundlename, iif(kind == p.SHAREDLIB and cfg.sharedlibtype == "OSXFramework", "Versions/A", "Contents/MacOS"))
 		end
 
 		local info = {}
@@ -97,6 +97,19 @@
 
 			if target.kind ~= "SharedLib" and target.kind ~= "StaticLib" then
 				return false
+			end
+
+			-- Can link mixed C++ with native projects
+
+			if cfg.language == "C++" then
+				if cfg.clr == p.ON then
+					return true
+				end
+			end
+			if target.language == "C++" then
+				if target.clr == p.ON then
+					return true
+				end
 			end
 
 			-- Can't link managed and unmanaged projects
@@ -249,10 +262,20 @@
 			local link = cfg.links[i]
 			local item
 
+			-- Strip linking decorators from link, to determine if the link
+			-- is a "sibling" project.
+			local endswith = function(s, ptrn)
+				return ptrn == string.sub(s, -string.len(ptrn))
+			end
+			local name = link
+			if endswith(name, ":static") or endswith(name, ":shared") then
+				name = string.sub(name, 0, -8)
+			end
+
 			-- Sort the links into "sibling" (is another project in this same
 			-- workspace) and "system" (is not part of this workspace) libraries.
 
-			local prj = p.workspace.findproject(cfg.workspace, link)
+			local prj = p.workspace.findproject(cfg.workspace, name)
 			if prj and kind ~= "system" then
 
 				-- Sibling; is there a matching configuration in this project that
@@ -287,7 +310,7 @@
 			end
 
 			-- If this is something I can link against, pull out the requested part
-			-- dont link against my self
+			-- don't link against my self
 			if item and item ~= cfg then
 				if part == "directory" then
 					item = path.getdirectory(item)
@@ -312,6 +335,29 @@
 		end
 
 		return result
+	end
+
+
+--
+-- Returns the list of sibling target directories
+--
+-- @param cfg
+--    The configuration object to query.
+-- @return
+--    Absolute path list
+--
+	function config.getsiblingtargetdirs(cfg)
+		local paths = {}
+		for _, sibling in ipairs(config.getlinks(cfg, "siblings", "object")) do
+			if (sibling.kind == p.SHAREDLIB) then
+				local p = sibling.linktarget.directory
+				if not (table.contains(paths, p)) then
+					table.insert(paths, p)
+				end
+			end
+		end
+
+		return paths
 	end
 
 
@@ -492,6 +538,9 @@
 
 		for field in p.field.eachOrdered() do
 			local map = mappings[field.name]
+			if type(map) == "function" then
+				map = map(cfg, mappings)
+			end
 			if map then
 
 				-- Pass each cfg value in the list through the map and append the

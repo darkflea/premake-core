@@ -1,8 +1,8 @@
-﻿/**
-* \file   premake.c
-* \brief  Program entry point.
+/**
+ * \file   premake.c
+ * \brief  Program entry point.
  * \author Copyright (c) 2002-2017 Jason Perkins and the Premake project
-*/
+ */
 
 #include <stdlib.h>
 #include <string.h>
@@ -59,39 +59,40 @@ static const luaL_Reg path_functions[] = {
 };
 
 static const luaL_Reg os_functions[] = {
-	{ "chdir",                  os_chdir },
-	{ "chmod",                  os_chmod },
-	{ "comparefiles",           os_comparefiles },
-	{ "copyfile",               os_copyfile },
-	{ "_is64bit",               os_is64bit },
-	{ "isdir",                  os_isdir },
-	{ "getcwd",                 os_getcwd },
-	{ "getpass",                os_getpass },
-	{ "getWindowsRegistry",     os_getWindowsRegistry },
-	{ "getversion",             os_getversion },
-	{ "host",                   os_host },
-	{ "isfile",                 os_isfile },
-	{ "islink",                 os_islink },
-	{ "locate",                 os_locate },
-	{ "matchdone",              os_matchdone },
-	{ "matchisfile",            os_matchisfile },
-	{ "matchname",              os_matchname },
-	{ "matchnext",              os_matchnext },
-	{ "matchstart",             os_matchstart },
-	{ "mkdir",                  os_mkdir },
+	{ "chdir",                  os_chdir                },
+	{ "chmod",                  os_chmod                },
+	{ "comparefiles",           os_comparefiles         },
+	{ "copyfile",               os_copyfile             },
+	{ "_is64bit",               os_is64bit              },
+	{ "isdir",                  os_isdir                },
+	{ "getcwd",                 os_getcwd               },
+	{ "getpass",                os_getpass              },
+	{ "getWindowsRegistry",     os_getWindowsRegistry   },
+	{ "listWindowsRegistry",    os_listWindowsRegistry  },
+	{ "getversion",             os_getversion           },
+	{ "host",                   os_host                 },
+	{ "isfile",                 os_isfile               },
+	{ "islink",                 os_islink               },
+	{ "locate",                 os_locate               },
+	{ "matchdone",              os_matchdone            },
+	{ "matchisfile",            os_matchisfile          },
+	{ "matchname",              os_matchname            },
+	{ "matchnext",              os_matchnext            },
+	{ "matchstart",             os_matchstart           },
+	{ "mkdir",                  os_mkdir                },
 #if PLATFORM_WINDOWS
 	// utf8 functions for Windows (assuming posix already handle utf8)
-	{ "remove",                  os_remove },
-	{ "rename",                  os_rename },
+	{"remove",                  os_remove               },
+	{"rename",                  os_rename               },
 #endif
-	{ "pathsearch",             os_pathsearch },
-	{ "realpath",               os_realpath },
-	{ "rmdir",                  os_rmdir },
-	{ "stat",                   os_stat },
-	{ "uuid",                   os_uuid },
+	{ "pathsearch",             os_pathsearch           },
+	{ "realpath",               os_realpath             },
+	{ "rmdir",                  os_rmdir                },
+	{ "stat",                   os_stat                 },
+	{ "uuid",                   os_uuid                 },
 	{ "writefile_ifnotequal",   os_writefile_ifnotequal },
 	{ "touchfile",              os_touchfile            },
-	{ "compile",                os_compile },
+	{ "compile",                os_compile              },
 	{ NULL, NULL }
 };
 
@@ -149,7 +150,6 @@ static const luaL_Reg yaml_functions[] = {
 };
 #endif
 
-
 static void lua_getorcreate_table(lua_State *L, const char *modname)
 {
 	luaL_getsubtable(L, LUA_REGISTRYINDEX, "_LOADED");      // get _LOADED table            stack = {_LOADED}
@@ -180,27 +180,27 @@ void luaL_register(lua_State *L, const char *libname, const luaL_Reg *l)
 
 
 /**
-* Initialize the Premake Lua environment.
-*/
+ * Initialize the Premake Lua environment.
+ */
 int premake_init(lua_State* L)
 {
 	const char* value;
 
 	luaL_register(L, "premake",  premake_functions);
 	luaL_register(L, "criteria", criteria_functions);
-	luaL_register(L, "debug", debug_functions);
-	luaL_register(L, "path", path_functions);
-	luaL_register(L, "os", os_functions);
-	luaL_register(L, "string", string_functions);
+	luaL_register(L, "debug",    debug_functions);
+	luaL_register(L, "path",     path_functions);
+	luaL_register(L, "os",       os_functions);
+	luaL_register(L, "string",   string_functions);
 	luaL_register(L, "buffered", buffered_functions);
-	luaL_register(L, "term", term_functions);
+	luaL_register(L, "term",     term_functions);
 
 #ifdef PREMAKE_CURL
-	luaL_register(L, "http", http_functions);
+	luaL_register(L, "http",     http_functions);
 #endif
 
 #ifdef PREMAKE_COMPRESSION
-	luaL_register(L, "zip", zip_functions);
+	luaL_register(L, "zip",     zip_functions);
 #endif
 
 #ifdef PREMAKE_YAML
@@ -208,7 +208,7 @@ int premake_init(lua_State* L)
 #endif
 
 	lua_pushlightuserdata(L, &s_shimTable);
-	lua_rawseti(L, LUA_REGISTRYINDEX, 'SHIM');
+	lua_rawseti(L, LUA_REGISTRYINDEX, 0x5348494D); // equal to 'SHIM'
 
 	/* push the application metadata */
 	lua_pushstring(L, LUA_COPYRIGHT);
@@ -339,12 +339,12 @@ int premake_execute(lua_State* L, int argc, const char** argv, const char* scrip
 
 
 /**
-* Locate the Premake executable, and push its full path to the Lua stack.
-* Based on:
-* http://sourceforge.net/tracker/index.php?func=detail&aid=3351583&group_id=71616&atid=531880
-* http://stackoverflow.com/questions/933850/how-to-find-the-location-of-the-executable-in-c
-* http://stackoverflow.com/questions/1023306/finding-current-executables-path-without-proc-self-exe
-*/
+ * Locate the Premake executable, and push its full path to the Lua stack.
+ * Based on:
+ * http://sourceforge.net/tracker/index.php?func=detail&aid=3351583&group_id=71616&atid=531880
+ * http://stackoverflow.com/questions/933850/how-to-find-the-location-of-the-executable-in-c
+ * http://stackoverflow.com/questions/1023306/finding-current-executables-path-without-proc-self-exe
+ */
 int premake_locate_executable(lua_State* L, const char* argv0)
 {
 	char buffer[PATH_MAX];
@@ -453,10 +453,10 @@ int premake_locate_executable(lua_State* L, const char* argv0)
 
 
 /**
-* Checks one or more of the standard script search locations to locate the
-* specified file. If found, returns the discovered path to the script on
-* the top of the Lua stack.
-*/
+ * Checks one or more of the standard script search locations to locate the
+ * specified file. If found, returns the discovered path to the script on
+ * the top of the Lua stack.
+ */
 int premake_test_file(lua_State* L, const char* filename, int searchMask)
 {
 	if (searchMask & TEST_LOCAL) {
@@ -505,9 +505,9 @@ static const char* set_scripts_path(const char* relativePath)
 
 
 /**
-* Set the premake.path variable, pulling from the --scripts argument
-* and PREMAKE_PATH environment variable if present.
-*/
+ * Set the premake.path variable, pulling from the --scripts argument
+ * and PREMAKE_PATH environment variable if present.
+ */
 static void build_premake_path(lua_State* L)
 {
 	int top;
@@ -574,11 +574,11 @@ static void build_premake_path(lua_State* L)
 
 
 /**
-* Copy all command line arguments into the script-side _ARGV global, and
-* check for the presence of a /scripts=<path> argument to help locate
-* the manifest if needed.
-* \returns OKAY if successful.
-*/
+ * Copy all command line arguments into the script-side _ARGV global, and
+ * check for the presence of a /scripts=<path> argument to help locate
+ * the manifest if needed.
+ * \returns OKAY if successful.
+ */
 static int process_arguments(lua_State* L, int argc, const char** argv)
 {
 	int i;
@@ -591,7 +591,7 @@ static int process_arguments(lua_State* L, int argc, const char** argv)
 		lua_rawseti(L, -2, luaL_len(L, -2) + 1);
 
 		/* The /scripts option gets picked up here; used later to find the
-		* manifest and scripts later if necessary */
+		 * manifest and scripts later if necessary */
 		if (strncmp(argv[i], "/scripts=", 9) == 0)
 		{
 			argv[i] = set_scripts_path(argv[i] + 9);
@@ -609,16 +609,16 @@ static int process_arguments(lua_State* L, int argc, const char** argv)
 
 
 /**
-* Find and run the main Premake bootstrapping script. The loading of the
-* bootstrap and the other core scripts use a limited set of search paths
-* to avoid mismatches between the native host code and the scripts
-* themselves.
-*/
+ * Find and run the main Premake bootstrapping script. The loading of the
+ * bootstrap and the other core scripts use a limited set of search paths
+ * to avoid mismatches between the native host code and the scripts
+ * themselves.
+ */
 static int run_premake_main(lua_State* L, const char* script)
 {
 	/* Release builds want to load the embedded scripts, with --scripts
-	* argument allowed as an override. Debug builds will look at the
-	* local file system first, then fall back to embedded. */
+	 * argument allowed as an override. Debug builds will look at the
+	 * local file system first, then fall back to embedded. */
 #if defined(NDEBUG)
 	int z = premake_test_file(L, script,
 		TEST_SCRIPTS | TEST_EMBEDDED);
@@ -628,7 +628,7 @@ static int run_premake_main(lua_State* L, const char* script)
 #endif
 
 	/* If no embedded script can be found, release builds will then
-	* try to fall back to the local file system, just in case */
+	 * try to fall back to the local file system, just in case */
 #if defined(NDEBUG)
 	if (z != OKAY) {
 		z = premake_test_file(L, script, TEST_LOCAL | TEST_PATH);
@@ -646,9 +646,9 @@ static int run_premake_main(lua_State* L, const char* script)
 
 
 /**
-* Locate a file in the embedded script index. If found, returns the
-* contents of the file's script.
-*/
+ * Locate a file in the embedded script index. If found, returns the
+ * contents of the file's script.
+ */
 
 const buildin_mapping* premake_find_embedded_script(const char* filename)
 {
@@ -666,11 +666,11 @@ const buildin_mapping* premake_find_embedded_script(const char* filename)
 
 
 /**
-* Load a script that was previously embedded into the executable. If
-* successful, a function containing the new script chunk is pushed to
-* the stack, just like luaL_loadfile would do had the chunk been loaded
-* from a file.
-*/
+ * Load a script that was previously embedded into the executable. If
+ * successful, a function containing the new script chunk is pushed to
+ * the stack, just like luaL_loadfile would do had the chunk been loaded
+ * from a file.
+ */
 
 int premake_load_embedded_script(lua_State* L, const char* filename)
 {

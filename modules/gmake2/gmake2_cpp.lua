@@ -58,19 +58,19 @@
 	function cpp.initialize()
 		rule 'cpp'
 			fileExtension { ".cc", ".cpp", ".cxx", ".mm" }
-			buildoutputs  { "$(OBJDIR)/%{premake.modules.gmake2.cpp.makeUnique(cfg, file.objname)}.o" }
+			buildoutputs  { "$(OBJDIR)/%{file.objname}.o" }
 			buildmessage  '$(notdir $<)'
 			buildcommands {'$(CXX) %{premake.modules.gmake2.cpp.fileFlags(cfg, file)} $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"'}
 
 		rule 'cc'
 			fileExtension {".c", ".s", ".m"}
-			buildoutputs  { "$(OBJDIR)/%{premake.modules.gmake2.cpp.makeUnique(cfg, file.objname)}.o" }
+			buildoutputs  { "$(OBJDIR)/%{file.objname}.o" }
 			buildmessage  '$(notdir $<)'
 			buildcommands {'$(CC) %{premake.modules.gmake2.cpp.fileFlags(cfg, file)} $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"'}
 
 		rule 'resource'
 			fileExtension ".rc"
-			buildoutputs  { "$(OBJDIR)/%{premake.modules.gmake2.cpp.makeUnique(cfg, file.objname)}.res" }
+			buildoutputs  { "$(OBJDIR)/%{file.objname}.res" }
 			buildmessage  '$(notdir $<)'
 			buildcommands {'$(RESCOMP) $< -O coff -o "$@" $(ALL_RESFLAGS)'}
 
@@ -124,7 +124,6 @@
 			cfg._gmake = cfg._gmake or {}
 			cfg._gmake.filesets = {}
 			cfg._gmake.fileRules = {}
-			cfg._gmake.bases = {}
 
 			local files = table.shallowcopy(prj._.files)
 			table.foreachi(files, function(node)
@@ -251,28 +250,13 @@
 		table.insert(fileset, filename)
 		cfg._gmake.filesets[kind] = fileset
 
+		local generatedKind = "GENERATED"
+		local generatedFileset = cfg._gmake.filesets[generatedKind] or {}
+		table.insert(generatedFileset, filename)
+		cfg._gmake.filesets[generatedKind] = generatedFileset
+
 		-- recursively setup rules.
 		cpp.addRuleFile(cfg, node)
-	end
-
-	function cpp.prepareEnvironment(rule, environ, cfg)
-		for _, prop in ipairs(rule.propertydefinition) do
-			local fld = p.rule.getPropertyField(rule, prop)
-			local value = cfg[fld.name]
-			if value ~= nil then
-
-				if fld.kind == "path" then
-					value = gmake2.path(cfg, value)
-				elseif fld.kind == "list:path" then
-					value = gmake2.path(cfg, value)
-				end
-
-				value = p.rule.expandString(rule, prop, value)
-				if value ~= nil and #value > 0 then
-					environ[prop.name] = p.esc(value)
-				end
-			end
-		end
 	end
 
 	function cpp.addRuleFile(cfg, node)
@@ -285,8 +269,8 @@
 			local environ = table.shallowcopy(filecfg.environ)
 
 			if rule.propertydefinition then
-				cpp.prepareEnvironment(rule, environ, cfg)
-				cpp.prepareEnvironment(rule, environ, filecfg)
+				p.rule.prepareEnvironment(rule, environ, cfg)
+				p.rule.prepareEnvironment(rule, environ, filecfg)
 			end
 
 			local shadowContext = p.context.extent(rule, environ)
@@ -384,44 +368,10 @@
 
 
 	function cpp.pch(cfg, toolset)
+		local pch = p.tools.gcc.getpch(cfg)
 		-- If there is no header, or if PCH has been disabled, I can early out
-		if not cfg.pchheader or cfg.flags.NoPCH then
+		if pch == nil then
 			return
-		end
-
-		-- Visual Studio requires the PCH header to be specified in the same way
-		-- it appears in the #include statements used in the source code; the PCH
-		-- source actual handles the compilation of the header. GCC compiles the
-		-- header file directly, and needs the file's actual file system path in
-		-- order to locate it.
-
-		-- To maximize the compatibility between the two approaches, see if I can
-		-- locate the specified PCH header on one of the include file search paths
-		-- and, if so, adjust the path automatically so the user doesn't have
-		-- add a conditional configuration to the project script.
-
-		local pch = cfg.pchheader
-		local found = false
-
-		-- test locally in the project folder first (this is the most likely location)
-		local testname = path.join(cfg.project.basedir, pch)
-		if os.isfile(testname) then
-			pch = project.getrelative(cfg.project, testname)
-			found = true
-		else
-			-- else scan in all include dirs.
-			for _, incdir in ipairs(cfg.includedirs) do
-				testname = path.join(incdir, pch)
-				if os.isfile(testname) then
-					pch = project.getrelative(cfg.project, testname)
-					found = true
-					break
-				end
-			end
-		end
-
-		if not found then
-			pch = project.getrelative(cfg.project, path.getabsolute(pch))
 		end
 
 		p.outln('PCH = ' .. pch)
@@ -436,7 +386,7 @@
 
 
 	function cpp.includes(cfg, toolset)
-		local includes = toolset.getincludedirs(cfg, cfg.includedirs, cfg.sysincludedirs)
+		local includes = toolset.getincludedirs(cfg, cfg.includedirs, cfg.externalincludedirs, cfg.frameworkdirs, cfg.includedirsafter)
 		p.outln('INCLUDES +=' .. gmake2.list(includes))
 	end
 
@@ -484,7 +434,7 @@
 
 
 	function cpp.ldFlags(cfg, toolset)
-		local flags = table.join(toolset.getLibraryDirectories(cfg), toolset.getrunpathdirs(cfg, cfg.runpathdirs), toolset.getldflags(cfg), cfg.linkoptions)
+		local flags = table.join(toolset.getLibraryDirectories(cfg), toolset.getrunpathdirs(cfg, table.join(cfg.runpathdirs, config.getsiblingtargetdirs(cfg))), toolset.getldflags(cfg), cfg.linkoptions)
 		p.outln('ALL_LDFLAGS += $(LDFLAGS)' .. gmake2.list(flags))
 	end
 
@@ -581,8 +531,8 @@
 			end
 		end
 
-		if fcfg.includedirs or fcfg.sysincludedirs then
-			local includes = toolset.getincludedirs(cfg, fcfg.includedirs, fcfg.sysincludedirs)
+		if fcfg.includedirs or fcfg.externalincludedirs or fcfg.frameworkdirs then
+			local includes = toolset.getincludedirs(cfg, fcfg.includedirs, fcfg.externalincludedirs, fcfg.frameworkdirs)
 			if #includes > 0 then
 				value = value ..  gmake2.list(includes)
 			end
@@ -736,9 +686,11 @@
 		_p('\t@echo Cleaning %s', cfg.project.name)
 		_p('ifeq (posix,$(SHELLTYPE))')
 		_p('\t$(SILENT) rm -f  $(TARGET)')
+		_p('\t$(SILENT) rm -rf $(GENERATED)')
 		_p('\t$(SILENT) rm -rf $(OBJDIR)')
 		_p('else')
 		_p('\t$(SILENT) if exist $(subst /,\\\\,$(TARGET)) del $(subst /,\\\\,$(TARGET))')
+		_p('\t$(SILENT) if exist $(subst /,\\\\,$(GENERATED)) del /s /q $(subst /,\\\\,$(GENERATED))')
 		_p('\t$(SILENT) if exist $(subst /,\\\\,$(OBJDIR)) rmdir /s /q $(subst /,\\\\,$(OBJDIR))')
 		_p('endif')
 		_p('')
@@ -768,18 +720,6 @@
 -- Output the file compile targets.
 --
 
-	function cpp.makeUnique(cfg, f)
-		local cache = cfg._gmake.bases
-		local seq = cache[f]
-		if seq == nil then
-			cache[f] = 1
-			return f
-		else
-			cache[f] = seq + 1
-			return f .. tostring(seq)
-		end
-	end
-
 	cpp.elements.fileRules = function(cfg)
 		local funcs = {}
 		for _, fileRule in ipairs(cfg._gmake.fileRules) do
@@ -800,17 +740,15 @@
 
 
 	function cpp.outputFileRules(cfg, file)
-		local outputs = table.concat(file.buildoutputs, ' ')
-
 		local dependencies = p.esc(file.source)
 		if file.buildinputs and #file.buildinputs > 0 then
 			dependencies = dependencies .. " " .. table.concat(p.esc(file.buildinputs), " ")
 		end
 
-		_p('%s: %s', outputs, dependencies)
+		_p('%s: %s', file.buildoutputs[1], dependencies)
 
 		if file.buildmessage then
-			_p('\t@echo %s', file.buildmessage)
+			_p('\t@echo %s', p.quote(file.buildmessage))
 		end
 
 		if file.buildcommands then
@@ -823,6 +761,13 @@
 				end
 			end
 		end
+
+		-- TODO: this is a hack with some imperfect side-effects.
+		--       better solution would be to emit a dummy file for the rule, and then outputs depend on it (must clean up dummy in 'clean')
+		--       better yet, is to use pattern rules, but we need to detect that all outputs have the same stem
+		if #file.buildoutputs > 1 then
+			_p('%s: %s', table.concat({ table.unpack(file.buildoutputs, 2) }, ' '), file.buildoutputs[1])
+		end
 	end
 
 
@@ -834,7 +779,7 @@
 
 
 	function cpp.dependencies(prj)
-		-- include the dependencies, built by GCC (with the -MMD flag)
+		-- include the dependencies, built by GCC (with the -MD flag)
 		_p('-include $(OBJECTS:%%.o=%%.d)')
 		_p('ifneq (,$(PCH))')
 			_p('  -include $(PCH_PLACEHOLDER).d')
